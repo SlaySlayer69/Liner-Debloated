@@ -148,6 +148,12 @@ export function StorageTab({ searchQuery: _searchQuery }: { searchQuery?: string
 
   useEffect(() => {
     setStorageTabOpen(true);
+    // cached numbers show instantly, fresh ones replace them once measured
+    if (getCachedStorageAnalytics()) {
+      void refreshStorageAnalytics()
+        .then((data) => setAnalytics(data))
+        .catch(() => {});
+    }
     return () => {
       setStorageTabOpen(false);
     };

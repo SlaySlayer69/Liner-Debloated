@@ -1,2 +1,2 @@
 export * from "./contracts";
-export { useTouchBarSync } from "./hooks/useTouchBarSync";
+export { useTouchBarSync, usePlaybackStatusSync, HAS_TOUCH_BAR } from "./hooks/useTouchBarSync";

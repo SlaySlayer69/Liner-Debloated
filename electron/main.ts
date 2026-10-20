@@ -216,6 +216,7 @@ function createWindow() {
       devTools: true,
       backgroundThrottling: false, // keeps audio timer and playback ticks running when app is in background or another workspace
       webSecurity: false,
+      spellcheck: false, // no spellcheck dictionaries loaded for a music player's search fields
     },
   });
 
@@ -278,9 +279,12 @@ function createWindow() {
   mainWindow.webContents.on("console-message", (_event, level, message) => {
     // clean devtools format directives for terminal readability
     const cleanMsg = message.replace(/%c/g, "").trim();
-    try {
-      fs.appendFileSync(path.join(process.cwd(), "renderer.log"), `[${level}] ${cleanMsg}\n`);
-    } catch {}
+    // dev-only log file: a synchronous disk write per renderer log line stalls the main process
+    if (!app.isPackaged) {
+      try {
+        fs.appendFileSync(path.join(process.cwd(), "renderer.log"), `[${level}] ${cleanMsg}\n`);
+      } catch {}
+    }
     if (level >= 3) {
       console.error(`\x1b[41;37m renderer error \x1b[0m ${cleanMsg}`);
     } else if (level === 2) {

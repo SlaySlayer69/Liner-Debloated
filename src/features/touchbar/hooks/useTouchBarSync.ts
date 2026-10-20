@@ -9,12 +9,28 @@ import {
   useLikeTrack,
   useUnlikeTrack,
 } from "@/features/library/hooks";
+import { isWindowVisible } from "@/shared/utils/windowVisibility";
 import type {
   TouchBarAction,
   TouchBarActiveLine,
   TouchBarStatePayload,
   TouchBarWordData,
 } from "../contracts";
+
+/** the touch bar only exists on macOS */
+export const HAS_TOUCH_BAR =
+  typeof window !== "undefined" && window.linerElectron?.platform === "darwin";
+
+/**
+ * without a touch bar the main process only needs the playback status (it keeps the display
+ * awake while music plays), so skip the lyrics bookkeeping and the per-tick ipc payload
+ */
+export function usePlaybackStatusSync() {
+  const status = usePlayerStore((s) => s.status);
+  useEffect(() => {
+    window.linerElectron?.touchbarUpdateState?.({ status });
+  }, [status]);
+}
 
 export function useTouchBarSync() {
   const navigate = useNavigate();
@@ -135,8 +151,12 @@ export function useTouchBarSync() {
     return cleanup;
   }, [currentTrack, isLiked, likeMutation, unlikeMutation, navigate, location.pathname]);
 
+  const isPlaying = player.status === "playing";
+  const hasLines = syncedLines.length > 0;
+
+  // the touch bar only shows the line, so ten checks a second are plenty; idle while paused
   useEffect(() => {
-    let rafId: number;
+    if (!isPlaying || !hasLines) return;
     let lastCalculatedIdx = -1;
 
     const syncLoop = () => {
@@ -172,12 +192,14 @@ export function useTouchBarSync() {
         }
       }
 
-      rafId = requestAnimationFrame(syncLoop);
     };
 
-    rafId = requestAnimationFrame(syncLoop);
-    return () => cancelAnimationFrame(rafId);
-  }, []);
+    syncLoop();
+    const timer = setInterval(() => {
+      if (isWindowVisible()) syncLoop();
+    }, 100);
+    return () => clearInterval(timer);
+  }, [isPlaying, hasLines]);
 
   useEffect(() => {
     if (!window.linerElectron?.touchbarUpdateState) return;
