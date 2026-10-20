@@ -42,6 +42,12 @@
     "sec": "s"
   },
   "common": {
+    "pin_to_sidebar": "Fixar na barra lateral",
+    "unpin_from_sidebar": "Desafixar da barra lateral",
+    "pinned_to_sidebar": "Fixado na barra lateral",
+    "unpinned_from_sidebar": "Removido da barra lateral",
+    "move_up": "Mover para cima",
+    "move_down": "Mover para baixo",
     "app": {
       "name": "Liner",
       "description": "Mais do que você gosta",
@@ -209,7 +215,38 @@
     "popularArtists": "Artistas em alta",
     "popularPlaylists": "Playlists populares",
     "dailyMixes": "Mixes diários",
-    "dailyMixesSubtitle": "Playlists novas e atualizadas em torno dos seus artistas e gêneros favoritos"
+    "dailyMixesSubtitle": "Playlists novas e atualizadas em torno dos seus artistas e gêneros favoritos",
+    "stats": {
+      "title": "Estatísticas",
+      "period_day": "Dia",
+      "period_week": "Semana",
+      "period_month": "Mês",
+      "period_year": "Ano",
+      "period_all": "Total",
+      "today": "Hoje",
+      "yesterday": "Ontem",
+      "this_week": "Esta semana",
+      "last_week": "Semana passada",
+      "this_month": "Este mês",
+      "last_month": "Mês passado",
+      "this_year": "Este ano",
+      "last_year": "Ano passado",
+      "all_time": "Desde sempre",
+      "previous": "Período anterior",
+      "next": "Próximo período",
+      "listening_time": "Tempo de escuta",
+      "plays": "Reproduções",
+      "tracks": "Músicas",
+      "artists": "Artistas",
+      "chart_label": "Tempo de escuta no período",
+      "top_songs": "Músicas mais ouvidas",
+      "top_artists": "Artistas mais ouvidos",
+      "top_genres": "Gêneros mais ouvidos",
+      "plays_count_one": "{count} reprodução",
+      "plays_count_other": "{count} reproduções",
+      "empty": "Ainda não há dados de escuta para este período.",
+      "genres_empty": "Ainda não há dados de gênero."
+    }
   },
   "library": {
     "title": "Biblioteca",
@@ -434,6 +471,12 @@
     "type_to_search": "Digite para pesquisar"
   },
   "settings": {
+    "shortcuts": {
+      "make_global": "Tornar atalho global",
+      "global_on_desc": "Global: funciona mesmo com outro aplicativo em foco. Clique para limitá-lo novamente ao Liner.",
+      "global_off_desc": "Torne-o global para que funcione mesmo com outro aplicativo em foco (requer Ctrl, Alt ou Shift).",
+      "global_failed": "Não foi possível registrá-lo no sistema; provavelmente outro aplicativo usa esta combinação. Escolha outra."
+    },
     "title": "Configurações",
     "search_placeholder": "Pesquisar configurações...",
     "subtitle": "Gerencie suas preferências",
