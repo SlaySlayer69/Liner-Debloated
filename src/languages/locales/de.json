@@ -42,6 +42,12 @@
     "sec": "Sek."
   },
   "common": {
+    "pin_to_sidebar": "An Seitenleiste anheften",
+    "unpin_from_sidebar": "Von Seitenleiste lösen",
+    "pinned_to_sidebar": "An Seitenleiste angeheftet",
+    "unpinned_from_sidebar": "Von Seitenleiste gelöst",
+    "move_up": "Nach oben",
+    "move_down": "Nach unten",
     "app": {
       "name": "Liner",
       "description": "Mehr von dem, was du magst",
@@ -203,7 +209,38 @@
     "popularArtists": "Künstler im Trend",
     "popularPlaylists": "Beliebte Playlists",
     "dailyMixes": "Daily Mixes",
-    "dailyMixesSubtitle": "Frische Playlists rund um deine Lieblingskünstler und Lieblingsgenres"
+    "dailyMixesSubtitle": "Frische Playlists rund um deine Lieblingskünstler und Lieblingsgenres",
+    "stats": {
+      "title": "Statistiken",
+      "period_day": "Tag",
+      "period_week": "Woche",
+      "period_month": "Monat",
+      "period_year": "Jahr",
+      "period_all": "Gesamt",
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "this_week": "Diese Woche",
+      "last_week": "Letzte Woche",
+      "this_month": "Dieser Monat",
+      "last_month": "Letzter Monat",
+      "this_year": "Dieses Jahr",
+      "last_year": "Letztes Jahr",
+      "all_time": "Insgesamt",
+      "previous": "Vorheriger Zeitraum",
+      "next": "Nächster Zeitraum",
+      "listening_time": "Wiedergabezeit",
+      "plays": "Wiedergaben",
+      "tracks": "Titel",
+      "artists": "Künstler",
+      "chart_label": "Wiedergabezeit im Zeitraum",
+      "top_songs": "Top-Songs",
+      "top_artists": "Top-Künstler",
+      "top_genres": "Top-Genres",
+      "plays_count_one": "{count} Wiedergabe",
+      "plays_count_other": "{count} Wiedergaben",
+      "empty": "Für diesen Zeitraum gibt es noch keine Hördaten.",
+      "genres_empty": "Noch keine Genre-Daten verfügbar."
+    }
   },
   "library": {
     "title": "Mediathek",
@@ -427,6 +464,13 @@
     "type_to_search": "Gib einen Suchbegriff ein"
   },
   "settings": {
+    "shortcuts": {
+      "make_global": "Shortcut global machen",
+      "modifier_required": "Globale Shortcuts benötigen Strg, Alt oder Umschalt",
+      "global_on_desc": "Global: funktioniert auch, wenn eine andere App im Vordergrund ist. Klicken, um ihn wieder nur in Liner zu nutzen.",
+      "global_off_desc": "Global machen, damit er auch funktioniert, wenn eine andere App im Vordergrund ist (benötigt Strg, Alt oder Umschalt).",
+      "global_failed": "Konnte nicht systemweit registriert werden, wahrscheinlich nutzt eine andere App diese Kombination. Wähle eine andere."
+    },
     "title": "Einstellungen",
     "search_placeholder": "Einstellungen durchsuchen…",
     "subtitle": "Verwalte deine Präferenzen",

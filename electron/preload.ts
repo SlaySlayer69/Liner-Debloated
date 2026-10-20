@@ -126,6 +126,11 @@ export interface LinerElectronApi {
   getOverlayInitialState: () => Promise<any>;
   updateOverlaySettings: (settings: any) => void;
   pauseOverlayShortcuts: (paused: boolean) => void;
+  setAppGlobalShortcuts: (
+    shortcuts: { action: string; accelerator: string }[],
+  ) => Promise<{ action: string; ok: boolean }[]>;
+  pauseAppGlobalShortcuts: (paused: boolean) => void;
+  onAppGlobalShortcut: (cb: (action: string) => void) => () => void;
   onOverlaySettingsChanged: (cb: (settings: any) => void) => () => void;
   onOverlayVisibility: (cb: (visible: boolean) => void) => () => void;
   setOverlayAuthenticated?: (authenticated: boolean) => void;
@@ -322,6 +327,17 @@ const api: LinerElectronApi = {
   },
   pauseOverlayShortcuts: (paused) => {
     ipcRenderer.send("overlay:pause-shortcuts", paused);
+  },
+  setAppGlobalShortcuts: (shortcuts) => ipcRenderer.invoke("shortcuts:set-app-global", shortcuts),
+  pauseAppGlobalShortcuts: (paused) => {
+    ipcRenderer.send("shortcuts:pause-app-global", paused);
+  },
+  onAppGlobalShortcut: (cb) => {
+    const listener = (_event: unknown, action: string) => cb(action);
+    ipcRenderer.on("shortcuts:app-global", listener);
+    return () => {
+      ipcRenderer.removeListener("shortcuts:app-global", listener);
+    };
   },
   onOverlaySettingsChanged: (cb) => {
     const listener = (_event: unknown, settings: any) => cb(settings);

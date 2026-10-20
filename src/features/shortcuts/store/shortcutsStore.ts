@@ -7,11 +7,16 @@ import {
   type MainAppShortcutsSettings,
   type MiniplayerShortcutsSettings,
   type ShortcutScope,
+  type MainAppShortcutAction,
+  type MainAppGlobalFlags,
 } from "../types";
-import { normalizeShortcutToEnglish } from "../utils/shortcutMatching";
+import { normalizeShortcutToEnglish, canBeGlobalShortcut } from "../utils/shortcutMatching";
 import { useOverlaySettingsStore } from "@/features/overlay/store/overlaySettingsStore";
 
 interface ShortcutsStoreState extends ShortcutsSettings {
+  mainAppGlobal: MainAppGlobalFlags;
+  // registration result per global action: false when the os refused it (taken by another app)
+  mainAppGlobalStatus: MainAppGlobalFlags;
   isRecording: boolean;
   setIsRecording: (recording: boolean) => void;
   setGlobalShortcut: (action: keyof GlobalShortcutsSettings, rawShortcut: string) => void;
@@ -20,6 +25,7 @@ interface ShortcutsStoreState extends ShortcutsSettings {
   resetShortcut: (scope: ShortcutScope, action: string) => void;
   resetSection: (scope: ShortcutScope) => void;
   resetAll: () => void;
+  setMainAppGlobal: (action: MainAppShortcutAction, enabled: boolean) => boolean;
 }
 
 function notifyElectronGlobalShortcuts(global: GlobalShortcutsSettings) {
@@ -31,10 +37,45 @@ function notifyElectronGlobalShortcuts(global: GlobalShortcutsSettings) {
   }
 }
 
+/** global flags that still apply: a shortcut without a modifier never goes global */
+function effectiveGlobalFlags(
+  flags: MainAppGlobalFlags,
+  mainApp: MainAppShortcutsSettings,
+): MainAppGlobalFlags {
+  const next: MainAppGlobalFlags = {};
+  for (const action of Object.keys(flags) as MainAppShortcutAction[]) {
+    if (flags[action] && action in mainApp && canBeGlobalShortcut(mainApp[action])) next[action] = true;
+  }
+  return next;
+}
+
+let globalSyncSeq = 0;
+
+function syncMainAppGlobalShortcuts(state: Pick<ShortcutsStoreState, "mainApp" | "mainAppGlobal">) {
+  const api = typeof window !== "undefined" ? window.linerElectron : undefined;
+  // older preload (hot-swapped renderer bundle) has no support yet
+  if (!api?.setAppGlobalShortcuts) return;
+  const list = (Object.keys(state.mainAppGlobal) as MainAppShortcutAction[])
+    .filter((action) => state.mainAppGlobal[action])
+    .map((action) => ({ action, accelerator: state.mainApp[action] }));
+  const seq = ++globalSyncSeq;
+  void api
+    .setAppGlobalShortcuts(list)
+    .then((results) => {
+      if (seq !== globalSyncSeq) return;
+      const status: MainAppGlobalFlags = {};
+      for (const r of results ?? []) status[r.action as MainAppShortcutAction] = r.ok;
+      useShortcutsStore.setState({ mainAppGlobalStatus: status });
+    })
+    .catch(() => {});
+}
+
 export const useShortcutsStore = create<ShortcutsStoreState>()(
   persist(
     (set, get) => ({
       ...DEFAULT_SHORTCUTS,
+      mainAppGlobal: {},
+      mainAppGlobalStatus: {},
       isRecording: false,
 
       setIsRecording: (recording: boolean) => {
@@ -42,6 +83,17 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
         if (typeof window !== "undefined" && window.linerElectron?.pauseOverlayShortcuts) {
           window.linerElectron.pauseOverlayShortcuts(recording);
         }
+        window.linerElectron?.pauseAppGlobalShortcuts?.(recording);
+      },
+
+      setMainAppGlobal: (action, enabled) => {
+        if (enabled && !canBeGlobalShortcut(get().mainApp[action])) return false;
+        const mainAppGlobal = { ...get().mainAppGlobal };
+        if (enabled) mainAppGlobal[action] = true;
+        else delete mainAppGlobal[action];
+        set({ mainAppGlobal });
+        syncMainAppGlobalShortcuts(get());
+        return true;
       },
 
       setGlobalShortcut: (action, rawShortcut) => {
@@ -63,12 +115,9 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
       setMainAppShortcut: (action, rawShortcut) => {
         const normalized =
           normalizeShortcutToEnglish(rawShortcut) || DEFAULT_SHORTCUTS.mainApp[action];
-        set({
-          mainApp: {
-            ...get().mainApp,
-            [action]: normalized,
-          },
-        });
+        const mainApp = { ...get().mainApp, [action]: normalized };
+        set({ mainApp, mainAppGlobal: effectiveGlobalFlags(get().mainAppGlobal, mainApp) });
+        syncMainAppGlobalShortcuts(get());
       },
 
       setMiniplayerShortcut: (action, rawShortcut) => {
@@ -102,7 +151,8 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
           notifyElectronGlobalShortcuts(next);
           useOverlaySettingsStore.setState({ shortcut: next.toggleOverlay });
         } else if (scope === "mainApp") {
-          set({ mainApp: { ...DEFAULT_SHORTCUTS.mainApp } });
+          set({ mainApp: { ...DEFAULT_SHORTCUTS.mainApp }, mainAppGlobal: {} });
+          syncMainAppGlobalShortcuts(get());
         } else if (scope === "miniplayer") {
           set({ miniplayer: { ...DEFAULT_SHORTCUTS.miniplayer } });
         }
@@ -113,8 +163,10 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
           global: { ...DEFAULT_SHORTCUTS.global },
           mainApp: { ...DEFAULT_SHORTCUTS.mainApp },
           miniplayer: { ...DEFAULT_SHORTCUTS.miniplayer },
+          mainAppGlobal: {},
         });
         notifyElectronGlobalShortcuts(DEFAULT_SHORTCUTS.global);
+        syncMainAppGlobalShortcuts(get());
         useOverlaySettingsStore.setState({ shortcut: DEFAULT_SHORTCUTS.global.toggleOverlay });
       },
     }),
@@ -125,6 +177,7 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
         global: state.global,
         mainApp: state.mainApp,
         miniplayer: state.miniplayer,
+        mainAppGlobal: state.mainAppGlobal,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
@@ -157,7 +210,10 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
             normalizeShortcutToEnglish(state.miniplayer[key]) || DEFAULT_SHORTCUTS.miniplayer[key];
         }
 
+        state.mainAppGlobal = effectiveGlobalFlags(state.mainAppGlobal || {}, state.mainApp);
+
         notifyElectronGlobalShortcuts(state.global);
+        syncMainAppGlobalShortcuts(state);
       },
     }
   )

@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import type { Track } from "@/shared/types";
-import { debouncedStorage } from "@/shared/utils/storage";
+import { debouncedStorage, createDeferredJSONStorage } from "@/shared/utils/storage";
 
 export { debouncedStorage };
 
@@ -234,7 +234,7 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: PLAYER_SESSION_STORAGE_KEY,
-      storage: createJSONStorage(() => debouncedStorage),
+      storage: createDeferredJSONStorage(),
       onRehydrateStorage: () => (state) => {
         // After hydration, if a track was saved, restore as paused so the UI
         // shows the track and position without auto-playing.

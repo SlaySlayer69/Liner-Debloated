@@ -469,7 +469,6 @@ function writePersistedAnalytics(data: StorageAnalytics): void {
 
 let cachedStorageAnalytics: StorageAnalytics | null = readPersistedAnalytics();
 let isStorageTabOpen = false;
-let backgroundIntervalId: ReturnType<typeof setInterval> | null = null;
 let isBackgroundUpdating = false;
 
 // returns cached analytics synchronously if available
@@ -477,7 +476,7 @@ export function getCachedStorageAnalytics(): StorageAnalytics | null {
   return cachedStorageAnalytics;
 }
 
-// notifies background scheduler whether storage tab is open (pauses polling to prevent UI flicker)
+// notifies the launch warm-up whether the storage tab is open (it measures on its own then)
 export function setStorageTabOpen(isOpen: boolean): void {
   isStorageTabOpen = isOpen;
 }
@@ -498,23 +497,26 @@ export async function refreshStorageAnalytics(): Promise<StorageAnalytics> {
   }
 }
 
-// initializes background polling (every 60s when storage tab is closed)
+let backgroundInitDone = false;
+
+// warms the analytics cache once after launch so the storage tab opens with numbers;
+// the tab refreshes them itself, so there is no periodic disk scan in the background
 export function initBackgroundStorageAnalytics(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || backgroundInitDone) return;
+  backgroundInitDone = true;
+  // the overlay window runs the same bundle but never shows the storage tab
+  if (window.location.hash.startsWith("#/overlay")) return;
 
-  // non-blocking initial fetch 1.5s after launch
   setTimeout(() => {
-    void refreshStorageAnalytics();
-  }, 1500);
-
-  // periodic background interval (60 seconds)
-  if (!backgroundIntervalId) {
-    backgroundIntervalId = setInterval(() => {
-      // skip update if user currently has storage tab open so nothing blinks or jumps
-      if (isStorageTabOpen) return;
-      void refreshStorageAnalytics();
-    }, 60_000);
-  }
+    const run = () => {
+      if (!isStorageTabOpen) void refreshStorageAnalytics();
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(run, { timeout: 10_000 });
+    } else {
+      run();
+    }
+  }, 5_000);
 }
 
 // automatically start in browser/electron

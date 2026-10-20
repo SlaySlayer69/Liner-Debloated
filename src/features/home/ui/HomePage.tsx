@@ -1,30 +1,16 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PopularTracksSection from "./PopularTracksSection";
-import DailyMixesSection from "./DailyMixesSection";
 import HomePageSkeleton from "./HomePageSkeleton";
-import {
-  usePopular,
-  usePopularTracksOnly,
-  usePopularTracksAllTime,
-} from "../hooks/usePopularTracks";
 import { useRecentlyPlayed } from "../hooks/useRecentlyPlayed";
-import { useDailyMixes } from "../hooks/useDailyMixes";
+import { StatisticsSection } from "@/features/stats";
 import { useLikedTracks } from "@/features/library/hooks/useLikedTracks";
 import { playerEngine } from "@/features/player";
 import SongCard from "@/features/player/ui/SongCard";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import { useTranslation } from "@/languages";
 import { useIsContentTransparent } from "@/features/settings/store/customizationStore";
-import {
-  FireFill,
-  TrophyFill,
-  TimeFill,
-  AlbumFill,
-  PlaylistFill,
-  HeartFill,
-  FlashCircleFill,
-} from "@mingcute/react";
+import { TimeFill, HeartFill, FlashCircleFill } from "@mingcute/react";
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -32,26 +18,10 @@ export default function HomePage() {
   const hasCustomBg = useIsContentTransparent();
   const { data: likedData, isLoading: likedLoading } = useLikedTracks();
 
-  const { data: popularItems, isLoading: popularLoading } = usePopular(100);
-  const { data: popularTracksOnly, isLoading: tracksLoading } =
-    usePopularTracksOnly(20);
-  const { data: popularTracksAllTime, isLoading: allTimeLoading } =
-    usePopularTracksAllTime(20);
   const { data: recentlyPlayed, isLoading: recentLoading } =
     useRecentlyPlayed(20);
-  const { data: dailyMixes } = useDailyMixes();
 
-  const isDataLoading =
-    tracksLoading ||
-    allTimeLoading ||
-    popularLoading ||
-    recentLoading ||
-    likedLoading;
-
-  const popularAlbums =
-    popularItems?.filter((it) => it.type === "album") ?? [];
-  const popularPlaylists =
-    popularItems?.filter((it) => it.type === "playlist") ?? [];
+  const isDataLoading = recentLoading || likedLoading;
 
   // Ambient time-of-day colored glow
   const glowClass = useMemo(() => {
@@ -190,24 +160,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Daily Mixes (Made For You) */}
-            {dailyMixes && dailyMixes.length > 0 && (
-              <DailyMixesSection
-                mixes={dailyMixes}
-                headingMarginTop="mt-[22px]"
-              />
-            )}
-
-          {/* Listening Right Now (Trending Chart) */}
-          {popularTracksOnly && popularTracksOnly.length > 0 && (
-            <PopularTracksSection
-              title={t("home.whatEveryonesOn")}
-              icon={<FireFill className="w-5 h-5 text-amber-500" />}
-              items={popularTracksOnly}
-              headingMarginTop="mt-[22px]"
-            />
-          )}
-
           {/* Jump Back In (History) */}
           {recentlyPlayed && recentlyPlayed.length > 0 && (
             <PopularTracksSection
@@ -218,35 +170,8 @@ export default function HomePage() {
             />
           )}
 
-          {/* Most Listened of All Time */}
-          {popularTracksAllTime && popularTracksAllTime.length > 0 && (
-            <PopularTracksSection
-              title={t("home.mostListened")}
-              icon={<TrophyFill className="w-5 h-5 text-yellow-500" />}
-              items={popularTracksAllTime}
-              headingMarginTop="mt-[22px]"
-            />
-          )}
-
-          {/* Top Albums */}
-          {popularAlbums && popularAlbums.length > 0 && (
-            <PopularTracksSection
-              title={t("home.popularAlbums")}
-              icon={<AlbumFill className="w-5 h-5 text-emerald-400" />}
-              items={popularAlbums}
-              headingMarginTop="mt-[22px]"
-            />
-          )}
-
-          {/* Popular Playlists */}
-          {popularPlaylists && popularPlaylists.length > 0 && (
-            <PopularTracksSection
-              title={t("home.popularPlaylists")}
-              icon={<PlaylistFill className="w-5 h-5 text-rose-400" />}
-              items={popularPlaylists}
-              headingMarginTop="mt-[22px]"
-            />
-          )}
+          {/* Listening statistics */}
+          <StatisticsSection headingMarginTop="mt-[22px]" />
         </div>
       )}
 

@@ -19,6 +19,8 @@ import {
 } from "@/features/library";
 import { useTranslation } from "@/languages";
 import { showToast } from "@/shared/ui";
+import { useSidebarPinMenuItem } from "@/features/navigation/hooks/useSidebarPinMenuItem";
+import { sidebarPinHref, type SidebarPinKind } from "@/features/navigation/store/sidebarPinsStore";
 
 export interface SongMenuContext {
   id?: string;
@@ -56,6 +58,21 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
   const unlikeMutation = useUnlikeTrack();
 
   const liked = useIsTrackLiked(id);
+
+  const pinKind: SidebarPinKind | null =
+    searchType === "album" || searchType === "artist" || searchType === "playlist" ? searchType : null;
+  const pinItem = useSidebarPinMenuItem(
+    pinKind && id
+      ? {
+          kind: pinKind,
+          id,
+          title,
+          subtitle: artists || undefined,
+          imageUrl: coverUrl || undefined,
+          href: sidebarPinHref(pinKind, id),
+        }
+      : null,
+  );
 
   const handleLike = useCallback(async () => {
     if (!id) return;
@@ -254,6 +271,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
           });
         },
       },
+      ...(pinItem ? [pinItem] : []),
     ];
   }, [
     id,
@@ -270,6 +288,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     liked,
     handleLike,
     playlistsData,
+    pinItem,
     t,
   ]);
 

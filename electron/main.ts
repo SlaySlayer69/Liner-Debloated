@@ -44,6 +44,7 @@ import { computeDragBounds, isInTopSnapZone, restoreUnderCursor } from "./window
 import { isWindows11, loadSnapPreviewAddon, NativeSnapPreview } from "./snap-native.js";
 import { DiscordRpcManager } from "./discord.js";
 import { PoTokenService } from "./potoken.js";
+import { createAppGlobalShortcuts, needsWindow } from "./app-shortcuts.js";
 
 // root error handling for main process
 process.on("uncaughtException", (error) => {
@@ -79,6 +80,7 @@ let overlayManager: OverlayManager | null = null;
 let bundleManager: BundleManager | null = null;
 let discordRpcManager: DiscordRpcManager | null = null;
 let poTokenService: PoTokenService | null = null;
+let appGlobalShortcuts: ReturnType<typeof createAppGlobalShortcuts> | null = null;
 
 // every helper process we spawn (tracert, icon cache refresh, ...) is tracked so
 // quitting can kill whatever is still running instead of leaving orphans behind
@@ -145,6 +147,10 @@ const shutdown = createShutdown({
     () => {
       poTokenService?.destroy();
       poTokenService = null;
+    },
+    () => {
+      appGlobalShortcuts?.dispose();
+      appGlobalShortcuts = null;
     },
     () => globalShortcut.unregisterAll(),
     () => {
@@ -216,6 +222,7 @@ function createWindow() {
       devTools: true,
       backgroundThrottling: false, // keeps audio timer and playback ticks running when app is in background or another workspace
       webSecurity: false,
+      spellcheck: false, // no spellcheck dictionaries loaded for a music player's search fields
     },
   });
 
@@ -278,9 +285,12 @@ function createWindow() {
   mainWindow.webContents.on("console-message", (_event, level, message) => {
     // clean devtools format directives for terminal readability
     const cleanMsg = message.replace(/%c/g, "").trim();
-    try {
-      fs.appendFileSync(path.join(process.cwd(), "renderer.log"), `[${level}] ${cleanMsg}\n`);
-    } catch {}
+    // dev-only log file: a synchronous disk write per renderer log line stalls the main process
+    if (!app.isPackaged) {
+      try {
+        fs.appendFileSync(path.join(process.cwd(), "renderer.log"), `[${level}] ${cleanMsg}\n`);
+      } catch {}
+    }
     if (level >= 3) {
       console.error(`\x1b[41;37m renderer error \x1b[0m ${cleanMsg}`);
     } else if (level === 2) {
@@ -439,6 +449,23 @@ if (!gotTheLock) {
       } else restore();
     });
     overlayManager.registerShortcut();
+
+    // main-app shortcuts the user made global in settings
+    appGlobalShortcuts = createAppGlobalShortcuts(globalShortcut, (action) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (needsWindow(action)) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        if (!mainWindow.isVisible()) mainWindow.show();
+        mainWindow.focus();
+      }
+      mainWindow.webContents.send("shortcuts:app-global", action);
+    });
+    ipcMain.handle("shortcuts:set-app-global", (_event, list: unknown) => {
+      return appGlobalShortcuts?.set(Array.isArray(list) ? list : []) ?? [];
+    });
+    ipcMain.on("shortcuts:pause-app-global", (_event, paused: unknown) => {
+      appGlobalShortcuts?.pause(Boolean(paused));
+    });
 
     discordRpcManager = new DiscordRpcManager();
     poTokenService = new PoTokenService(path.join(__dirname, "preload.cjs"));

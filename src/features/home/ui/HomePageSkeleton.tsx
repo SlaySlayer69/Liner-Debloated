@@ -110,26 +110,25 @@ function HomePageSkeletonComponent({
         </div>
       )}
 
-      {/* Section 1: Listening Right Now */}
-      <SectionSkeleton
-        headingMarginTop="mt-[22px]"
-        titleWidth="w-[190px]"
-        cardsCount={7}
-      />
-
-      {/* Section 2: Jump Back In */}
+      {/* Jump Back In */}
       <SectionSkeleton
         headingMarginTop="mt-[22px]"
         titleWidth="w-[170px]"
         cardsCount={7}
       />
 
-      {/* Section 3: Most Listened of All Time */}
-      <SectionSkeleton
-        headingMarginTop="mt-[22px]"
-        titleWidth="w-[210px]"
-        cardsCount={7}
-      />
+      {/* Statistics */}
+      <div className="flex flex-col select-none">
+        <div className="mt-[22px] px-8 flex items-center gap-2.5">
+          <div className="skeleton-shimmer w-5 h-5 rounded-[4px] shrink-0" />
+          <div className="skeleton-shimmer h-[22px] w-[130px] rounded-[5px]" />
+        </div>
+        <div className="px-8 mt-[46px] grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skeleton-shimmer h-[66px] rounded-[6px]" />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

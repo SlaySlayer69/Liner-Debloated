@@ -81,4 +81,58 @@ describe("shortcutsStore", () => {
     expect(useShortcutsStore.getState().isRecording).toBe(false);
     expect(pauseOverlayShortcuts).toHaveBeenCalledWith(false);
   });
+
+  describe("global main app shortcuts", () => {
+    it("registers flagged actions with electron and records which ones the os accepted", async () => {
+      const setAppGlobalShortcuts = vi.fn(async (list: { action: string }[]) =>
+        list.map(({ action }) => ({ action, ok: action !== "nextTrack" })),
+      );
+      (window as any).linerElectron = { setAppGlobalShortcuts };
+
+      expect(useShortcutsStore.getState().setMainAppGlobal("prevTrack", true)).toBe(true);
+      expect(useShortcutsStore.getState().setMainAppGlobal("nextTrack", true)).toBe(true);
+      expect(setAppGlobalShortcuts).toHaveBeenLastCalledWith([
+        { action: "prevTrack", accelerator: "Control+Left" },
+        { action: "nextTrack", accelerator: "Control+Right" },
+      ]);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(useShortcutsStore.getState().mainAppGlobalStatus).toEqual({ prevTrack: true, nextTrack: false });
+
+      useShortcutsStore.getState().setMainAppGlobal("prevTrack", false);
+      expect(useShortcutsStore.getState().mainAppGlobal).toEqual({ nextTrack: true });
+    });
+
+    it("refuses keys without a modifier and drops the flag when one is assigned", () => {
+      (window as any).linerElectron = { setAppGlobalShortcuts: vi.fn(async () => []) };
+
+      // Space would swallow typing in every other application
+      expect(useShortcutsStore.getState().setMainAppGlobal("playPause", false)).toBe(true);
+      expect(useShortcutsStore.getState().setMainAppGlobal("playPause", true)).toBe(false);
+      expect(useShortcutsStore.getState().mainAppGlobal.playPause).toBeUndefined();
+
+      useShortcutsStore.getState().setMainAppShortcut("toggleMute", "Alt+M");
+      expect(useShortcutsStore.getState().setMainAppGlobal("toggleMute", true)).toBe(true);
+      useShortcutsStore.getState().setMainAppShortcut("toggleMute", "M");
+      expect(useShortcutsStore.getState().mainAppGlobal.toggleMute).toBeUndefined();
+
+      useShortcutsStore.getState().setMainAppShortcut("search", "F6");
+      expect(useShortcutsStore.getState().setMainAppGlobal("search", true)).toBe(true);
+    });
+
+    it("clears all global flags on reset", () => {
+      (window as any).linerElectron = { setAppGlobalShortcuts: vi.fn(async () => []) };
+      useShortcutsStore.getState().setMainAppGlobal("nextTrack", true);
+      useShortcutsStore.getState().resetAll();
+      expect(useShortcutsStore.getState().mainAppGlobal).toEqual({});
+    });
+
+    it("pauses the app's global shortcuts while recording", () => {
+      const pauseAppGlobalShortcuts = vi.fn();
+      (window as any).linerElectron = { pauseAppGlobalShortcuts };
+      useShortcutsStore.getState().setIsRecording(true);
+      expect(pauseAppGlobalShortcuts).toHaveBeenCalledWith(true);
+      useShortcutsStore.getState().setIsRecording(false);
+    });
+  });
 });

@@ -8,7 +8,7 @@ import { AuthLock } from "@/features/auth";
 import { CoverSwRegistrar } from "@/features/covers";
 import { usePresenceSync } from "@/shared/presence";
 import { useThemeCustomizationSync } from "@/features/settings";
-import { useTouchBarSync } from "@/features/touchbar";
+import { useTouchBarSync, usePlaybackStatusSync, HAS_TOUCH_BAR } from "@/features/touchbar";
 import { OverlayPlayer, useOverlaySync } from "@/features/overlay";
 import { useDiscordSync } from "@/features/discord";
 import { AppRoutes } from "./routes";
@@ -35,6 +35,11 @@ function ThemeSync() {
 
 function TouchBarSync() {
   useTouchBarSync();
+  return null;
+}
+
+function PlaybackStatusSync() {
+  usePlaybackStatusSync();
   return null;
 }
 
@@ -85,7 +90,7 @@ export default function App() {
         <ThemeSync />
         <AppIconSync />
         <PresenceSync />
-        <TouchBarSync />
+        {HAS_TOUCH_BAR ? <TouchBarSync /> : <PlaybackStatusSync />}
         <OverlaySync />
         <DiscordSync />
         <AppleEmojiProvider>

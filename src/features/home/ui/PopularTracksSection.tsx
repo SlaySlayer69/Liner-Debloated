@@ -28,10 +28,12 @@ function TrackCard({
   item,
   index,
   showRanks,
+  caption,
 }: {
   item: PopularItem & { type: "track" };
   index: number;
   showRanks?: boolean;
+  caption?: string;
 }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,6 +170,9 @@ function TrackCard({
             className="text-[13px] text-text-tertiary"
           />
         </div>
+        {caption && (
+          <span className="truncate text-[12px] text-text-tertiary tabular-nums">{caption}</span>
+        )}
       </div>
 
       {menuItems.length > 0 && (
@@ -376,7 +381,13 @@ function PlaylistCard({
   );
 }
 
-function ArtistCard({ item }: { item: PopularItem & { type: "artist" } }) {
+function ArtistCard({
+  item,
+  caption,
+}: {
+  item: PopularItem & { type: "artist" };
+  caption?: string;
+}) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -412,6 +423,8 @@ function ArtistCard({ item }: { item: PopularItem & { type: "artist" } }) {
   }, []);
 
   const handleClick = () => {
+    // listening statistics can hold artists known only by name
+    if (!item.item.id) return;
     navigate(`/artist?id=${encodeURIComponent(item.item.id)}`);
   };
 
@@ -440,7 +453,7 @@ function ArtistCard({ item }: { item: PopularItem & { type: "artist" } }) {
           {item.item.name}
         </span>
         <span className="truncate w-full text-[13px] text-text-tertiary">
-          {t("artist.listeners", { count: item.item.followers })}
+          {caption ?? t("artist.listeners", { count: item.item.followers })}
         </span>
       </div>
 
@@ -457,14 +470,16 @@ function ArtistCard({ item }: { item: PopularItem & { type: "artist" } }) {
   );
 }
 
-function PopularItemCard({
+export function PopularItemCard({
   item,
   index,
   showRanks,
+  caption,
 }: {
   item: PopularItem;
   index: number;
   showRanks?: boolean;
+  caption?: string;
 }) {
   switch (item.type) {
     case "track":
@@ -473,6 +488,7 @@ function PopularItemCard({
           item={item}
           index={index}
           showRanks={showRanks}
+          caption={caption}
         />
       );
     case "album":
@@ -480,7 +496,7 @@ function PopularItemCard({
     case "playlist":
       return <PlaylistCard item={item} index={index} showRanks={showRanks} />;
     case "artist":
-      return <ArtistCard item={item} />;
+      return <ArtistCard item={item} caption={caption} />;
   }
 }
 

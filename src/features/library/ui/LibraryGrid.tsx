@@ -12,6 +12,7 @@ import type {
 import { useTranslation } from "@/languages";
 import { useModalStore } from "../store/modalStore";
 import { LuTrash2 } from "react-icons/lu";
+import { useSidebarPinMenuItem } from "@/features/navigation/hooks/useSidebarPinMenuItem";
 import {
   More2Fill,
   PlaylistFill,
@@ -61,6 +62,14 @@ function LoadingSkeletonList() {
 
 function useItemMenuItems(item: LibraryItemViewModel): DropdownMenuItem[] {
   const { t } = useTranslation();
+  const pinItem = useSidebarPinMenuItem({
+    kind: item.kind,
+    id: item.id,
+    title: item.title,
+    subtitle: item.subtitle || undefined,
+    imageUrl: item.imageUrl || item.coverUrls?.[0] || undefined,
+    href: item.href,
+  });
   return useMemo(() => {
     const entityType =
       item.kind === "artist"
@@ -69,6 +78,7 @@ function useItemMenuItems(item: LibraryItemViewModel): DropdownMenuItem[] {
           ? "album"
           : "playlist";
     return [
+      ...(pinItem ? [pinItem] : []),
       {
         id: "remove-from-library",
         label: t("common.remove_from_library"),
@@ -86,7 +96,7 @@ function useItemMenuItems(item: LibraryItemViewModel): DropdownMenuItem[] {
         },
       },
     ];
-  }, [item.id, item.title, item.imageUrl, item.subtitle, item.kind, item.isOwned, item.href, t]);
+  }, [item.id, item.title, item.imageUrl, item.subtitle, item.kind, item.isOwned, item.href, pinItem, t]);
 }
 
 function LibraryItemCard({ item }: { item: LibraryItemViewModel }) {

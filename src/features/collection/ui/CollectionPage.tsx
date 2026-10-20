@@ -37,6 +37,8 @@ import { buildShareUrl } from "@/shared/utils/share";
 import { useExternalItems } from "@/features/library/hooks";
 import { useCollection } from "../hooks/useCollection";
 import { useIsContentTransparent } from "@/features/settings/store/customizationStore";
+import { useSidebarPinMenuItem } from "@/features/navigation/hooks/useSidebarPinMenuItem";
+import { sidebarPinHref } from "@/features/navigation/store/sidebarPinsStore";
 import {
   useTrackSearch,
   useTrackSearchButtonLabel,
@@ -73,6 +75,19 @@ function CollectionContent() {
     entityType === "album"
       ? savedAlbums.some((album) => album.id === decodedId)
       : savedPlaylists.some((playlist) => playlist.id === decodedId);
+
+  const pinItem = useSidebarPinMenuItem(
+    decodedId && data && !isDailyMix
+      ? {
+          kind: entityType,
+          id: decodedId,
+          title: data.title,
+          subtitle: data.author || undefined,
+          imageUrl: data.coverUrl || undefined,
+          href: sidebarPinHref(entityType, decodedId),
+        }
+      : null,
+  );
 
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [skeletonExited, setSkeletonExited] = useState(false);
@@ -552,6 +567,7 @@ function CollectionContent() {
                                 label: t("common.share"),
                                 onClick: handleShare,
                               },
+                              ...(pinItem ? [pinItem] : []),
                             ]}
                           />
                         )}
