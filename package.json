@@ -13,7 +13,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "bundle:publish": "pnpm --dir ../updater bundle:publish",
     "signer:build": "node ../signer/scripts/build-wasm.mjs",
     "preview": "vite preview",
     "test": "vitest run",
@@ -29,13 +28,7 @@
     "productName": "Liner",
     "executableName": "liner",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "tryliner",
-        "repo": "desktop"
-      }
-    ],
+    "publish": null,
     "directories": {
       "output": "release"
     },
@@ -114,7 +107,6 @@
     "@tanstack/react-virtual": "^3.13.23",
     "@xhayper/discord-rpc": "^1.5.1",
     "bgutils-js": "4.0.3",
-    "electron-updater": "^6.8.9",
     "framer-motion": "^12.38.0",
     "gsap": "^3.15.0",
     "lottie-web": "^5.13.0",

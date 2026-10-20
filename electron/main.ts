@@ -1,6 +1,5 @@
 import { app, BaseWindow, BrowserWindow, globalShortcut, ipcMain, shell, screen, dialog, session, nativeImage, powerSaveBlocker } from "electron";
 import type { Display, Rectangle } from "electron";
-import { autoUpdater } from "electron-updater";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
@@ -36,7 +35,6 @@ import {
 } from "./netdiag.js";
 import { TouchBarManager } from "./touchbar.js";
 import { OverlayManager } from "./overlay.js";
-import { BundleManager } from "./bundle-manager.js";
 import { createBundleErrorStamp } from "./bundle-stamp.js";
 import { createSleepBlocker } from "./sleep-blocker.js";
 import { createShutdown } from "./shutdown.js";
@@ -77,7 +75,6 @@ process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
 let mainWindow: BrowserWindow | null = null;
 let touchBarManager: TouchBarManager | null = null;
 let overlayManager: OverlayManager | null = null;
-let bundleManager: BundleManager | null = null;
 let discordRpcManager: DiscordRpcManager | null = null;
 let poTokenService: PoTokenService | null = null;
 let appGlobalShortcuts: ReturnType<typeof createAppGlobalShortcuts> | null = null;
@@ -302,15 +299,8 @@ function createWindow() {
 
   const bundleErrorStamp = createBundleErrorStamp(
     {
-      getVersionInfo: () => {
-        const active = bundleManager?.getActiveState();
-        return {
-          version: active?.bundleVersion || app.getVersion(),
-          isOta: Boolean(active),
-          sha256: active?.sha256 || null,
-        };
-      },
-      peekUpdate: async () => (bundleManager ? bundleManager.peekUpdate() : { kind: "inactive" }),
+      getVersionInfo: () => ({ version: app.getVersion(), isOta: false, sha256: null }),
+      peekUpdate: async () => ({ kind: "inactive" }),
     },
     { emit: (line) => mainWindow?.webContents.send("bundle:stamp", line) },
   );
@@ -333,16 +323,9 @@ function createWindow() {
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    bundleManager = new BundleManager({
-      defaultRendererDist: RENDERER_DIST,
-    });
-    bundleManager.setMainWindow(mainWindow);
-    const manager = bundleManager;
-    const win = mainWindow;
-    void (async () => {
-      if (app.isPackaged) await manager.updateBeforeLaunch().catch(() => undefined);
-      if (!win.isDestroyed()) win.loadFile(manager.getEffectiveIndexPath());
-    })();
+    // always the renderer shipped with this build: the original liner's over-the-air bundles
+    // (and any it left in userData) would replace this fork's interface
+    mainWindow.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 
   mainWindow.once("ready-to-show", () => {
@@ -1517,126 +1500,22 @@ if (!gotTheLock) {
       };
     });
 
-    // updater config: production github releases only, no prereleases or auto-install on close
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = false;
-    autoUpdater.allowPrerelease = false;
-    autoUpdater.allowDowngrade = false;
-
-    autoUpdater.on("update-available", (info) => {
-      mainWindow?.webContents.send("updater:update-available", {
-        version: info.version,
-        releaseDate: info.releaseDate,
-        releaseNotes: typeof info.releaseNotes === "string" ? info.releaseNotes : undefined,
-      });
-    });
-
-    autoUpdater.on("download-progress", (progressObj) => {
-      mainWindow?.webContents.send("updater:download-progress", {
-        percent: Math.round(progressObj.percent * 10) / 10,
-        transferred: progressObj.transferred,
-        total: progressObj.total,
-        bytesPerSecond: progressObj.bytesPerSecond,
-      });
-    });
-
-    autoUpdater.on("update-downloaded", (info) => {
-      mainWindow?.webContents.send("updater:update-downloaded", {
-        version: info.version,
-      });
-    });
-
-    autoUpdater.on("error", (err) => {
-      console.error("\x1b[31m updater \x1b[0m autoUpdater error:", err?.message || err);
-      mainWindow?.webContents.send("updater:error", {
-        message: err?.message || "Update check failed",
-      });
-    });
-
-    ipcMain.handle("updater:check-for-updates", async () => {
-      if (!app.isPackaged) {
-        return { available: false, error: "Updater is disabled in dev mode" };
-      }
-      try {
-        const result = await autoUpdater.checkForUpdates();
-        return {
-          available: Boolean(result?.updateInfo?.version && result.updateInfo.version !== app.getVersion()),
-          version: result?.updateInfo?.version,
-          releaseNotes: typeof result?.updateInfo?.releaseNotes === "string" ? result.updateInfo.releaseNotes : undefined,
-        };
-      } catch (err: any) {
-        return { available: false, error: err?.message || "Failed to check for updates" };
-      }
-    });
-
-    ipcMain.handle("updater:download-update", async () => {
-      if (!app.isPackaged) {
-        return { success: false, error: "Updater is disabled in dev mode" };
-      }
-      try {
-        await autoUpdater.downloadUpdate();
-        return { success: true };
-      } catch (err: any) {
-        return { success: false, error: err?.message || "Failed to download update" };
-      }
-    });
-
-    ipcMain.handle("updater:quit-and-install", () => {
-      setImmediate(() => {
-        autoUpdater.quitAndInstall(false, true);
-      });
-      return true;
-    });
-
-    // OTA bundle updater IPC handlers
-    ipcMain.handle("bundle:check", async () => {
-      if (!bundleManager) {
-        return { available: false, error: "Bundle updater inactive (dev mode)" };
-      }
-      return await bundleManager.checkForUpdates();
-    });
-
-    ipcMain.handle("bundle:download-and-install", async (_event, manifest) => {
-      if (!bundleManager) {
-        return { success: false, error: "Bundle updater inactive (dev mode)" };
-      }
-      return await bundleManager.downloadAndInstall(manifest);
-    });
-
-    ipcMain.handle("bundle:hot-swap", () => {
-      if (!bundleManager) return false;
-      return bundleManager.hotSwap();
-    });
-
-    ipcMain.handle("bundle:rollback", () => {
-      if (!bundleManager) return false;
-      return bundleManager.rollback();
-    });
-
-    ipcMain.handle("bundle:get-status", () => {
-      const activeState = bundleManager?.getActiveState?.() || null;
-      return {
-        appVersion: app.getVersion(),
-        bundleVersion: activeState?.bundleVersion || app.getVersion(),
-        isOta: Boolean(activeState),
-        sha256: activeState?.sha256 || null,
-        effectivePath: bundleManager ? bundleManager.getEffectiveIndexPath() : RENDERER_DIST,
-      };
-    });
-
-    // automatic update check after window initialization (packaged app only)
-    if (app.isPackaged) {
-      setTimeout(() => {
-        autoUpdater.checkForUpdates().catch((err) => {
-          console.error("\x1b[31m updater \x1b[0m background check error:", err?.message || err);
-        });
-      }, 4000);
-
-      // check for OTA bundles every 15 minutes silently in background
-      setInterval(() => {
-        bundleManager?.checkForUpdates().catch(() => {});
-      }, 15 * 60 * 1000);
-    }
+    // this fork has no update channel of its own: the original liner's github releases and
+    // ota bundles would replace it, so update checks always report that nothing is available
+    ipcMain.handle("updater:check-for-updates", () => ({ available: false }));
+    ipcMain.handle("updater:download-update", () => ({ success: false, error: "Updates are disabled" }));
+    ipcMain.handle("updater:quit-and-install", () => false);
+    ipcMain.handle("bundle:check", () => ({ available: false, reason: "Updates are disabled" }));
+    ipcMain.handle("bundle:download-and-install", () => ({ success: false, error: "Updates are disabled" }));
+    ipcMain.handle("bundle:hot-swap", () => false);
+    ipcMain.handle("bundle:rollback", () => false);
+    ipcMain.handle("bundle:get-status", () => ({
+      appVersion: app.getVersion(),
+      bundleVersion: app.getVersion(),
+      isOta: false,
+      sha256: null,
+      effectivePath: path.join(RENDERER_DIST, "index.html"),
+    }));
 
     app.on("activate", () => {
       if (!shutdown.isQuitting() && BrowserWindow.getAllWindows().length === 0) {
