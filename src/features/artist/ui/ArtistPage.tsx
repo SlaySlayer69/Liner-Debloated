@@ -6,6 +6,8 @@ import {
   NewFolderLine,
   FolderCheckFill,
   ShareForwardLine,
+  PinFill,
+  PinLine,
 } from "@mingcute/react";
 import Button from "@/shared/ui/Button";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
@@ -40,6 +42,11 @@ interface ArtistReleaseViewModel extends ArtistAlbumViewModel {
 }
 
 import { useArtist } from "../hooks/useArtist";
+import {
+  sidebarPinHref,
+  useIsSidebarPinned,
+  useSidebarPinsStore,
+} from "@/features/navigation/store/sidebarPinsStore";
 
 function stripMarkdown(text: string): string {
   return text
@@ -73,6 +80,7 @@ function ArtistContent() {
   const decodedId = id ? decodeURIComponent(id) : "";
   const { data: savedArtists } = useExternalItems("artist");
   const inLibrary = savedArtists.some((artist) => artist.id === decodedId);
+  const isPinned = useIsSidebarPinned("artist", decodedId);
 
   const urlsToPreload = useMemo(() => {
     if (!data) return [];
@@ -185,6 +193,20 @@ function ArtistContent() {
         type: "artist",
       });
     }
+  };
+
+  const handleTogglePin = () => {
+    if (!decodedId || !data) return;
+    const pinned = useSidebarPinsStore.getState().toggle({
+      kind: "artist",
+      id: decodedId,
+      title: data.title,
+      imageUrl: data.coverUrl || undefined,
+      href: sidebarPinHref("artist", decodedId),
+    });
+    toast(pinned ? t("common.pinned_to_sidebar") : t("common.unpinned_from_sidebar"), "checkmark", {
+      description: data.title || undefined,
+    });
   };
 
   const handleShare = () => {
@@ -412,6 +434,20 @@ function ArtistContent() {
                       title={t("artist.share")}
                     >
                       <ShareForwardLine size={18} />
+                    </Button>
+
+                    <Button
+                      variant={hasCustomBg ? "glass-action" : "outline"}
+                      onClick={handleTogglePin}
+                      aria-pressed={isPinned}
+                      className={`!h-[38px] !w-[38px] !p-0 flex items-center justify-center transition-colors ${
+                        hasCustomBg
+                          ? ""
+                          : "text-text-secondary hover:text-text-primary bg-bg-panel/40 backdrop-blur-sm"
+                      }`}
+                      title={isPinned ? t("common.unpin_from_sidebar") : t("common.pin_to_sidebar")}
+                    >
+                      {isPinned ? <PinFill size={18} /> : <PinLine size={18} />}
                     </Button>
                   </div>
                 </div>

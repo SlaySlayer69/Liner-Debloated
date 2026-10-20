@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { api } from "@/shared/api";
 import { notifyLibraryChanged, evictPlaylistFromCache } from "./usePlaylists";
 import { applyOptimisticLike, applyOptimisticUnlike } from "./useLikedTracks";
+import { useSidebarPinsStore } from "@/features/navigation/store/sidebarPinsStore";
 
 type Options = {
   onSuccess?: (...args: any[]) => void;
@@ -73,7 +74,10 @@ export function useCreatePlaylist() {
 export function useDeletePlaylist() {
   return useMutation(async ({ playlistId }: { playlistId: string }) => {
     evictPlaylistFromCache(playlistId);
-    return api.deletePlaylist(playlistId);
+    const res = await api.deletePlaylist(playlistId);
+    // a deleted playlist must not linger as a dead sidebar pin
+    useSidebarPinsStore.getState().unpin("playlist", playlistId);
+    return res;
   });
 }
 
@@ -109,6 +113,7 @@ export function useRemoveExternalItem() {
         }
         try {
           const res = await api.deletePlaylist(id);
+          useSidebarPinsStore.getState().unpin("playlist", id);
           // purge any saved collection reference in case it was both created and saved
           await api.removeCollection("playlists", id).catch(() => {});
           return res;

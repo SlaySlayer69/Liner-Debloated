@@ -21,6 +21,8 @@ import { LuPencil, LuTrash2, LuText, LuShuffle } from "react-icons/lu";
 import { buildShareUrl } from "@/shared/utils/share";
 import Button from "@/shared/ui/Button";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
+import { useSidebarPinMenuItem } from "@/features/navigation/hooks/useSidebarPinMenuItem";
+import { sidebarPinHref } from "@/features/navigation/store/sidebarPinsStore";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { useModalStore } from "../store/modalStore";
@@ -165,6 +167,18 @@ function LibraryPlaylistContent() {
       revision: playlistDetail.revision,
     };
   })();
+
+  const pinItem = useSidebarPinMenuItem(
+    !isLikesMode && decodedId && viewData
+      ? {
+          kind: "playlist",
+          id: decodedId,
+          title: viewData.title,
+          imageUrl: viewData.coverUrl || viewData.coverUrls[0] || undefined,
+          href: sidebarPinHref("playlist", decodedId, true),
+        }
+      : null,
+  );
 
   useEffect(() => {
     if (isEditingTitle && titleRef.current) {
@@ -801,6 +815,7 @@ function LibraryPlaylistContent() {
                                 label: t("common.share"),
                                 onClick: handleShare,
                               },
+                              ...(pinItem ? [pinItem] : []),
                               {
                                 id: "delete",
                                 icon: <LuTrash2 size={15} />,
