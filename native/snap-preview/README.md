@@ -11,7 +11,7 @@ Electron upgrade).
 
 ## Build (Windows)
 
-Needs Visual Studio 2022 (or Build Tools) with **Desktop development with C++**
+Needs Visual Studio 2022 or 2026 (or Build Tools) with **Desktop development with C++**
 and a Windows 10/11 SDK.
 
     pnpm native:build

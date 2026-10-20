@@ -5,7 +5,6 @@ import { api } from "@/shared/api";
 import ScrollableRow from "@/shared/ui/ScrollableRow";
 import { Tooltip } from "@/shared/ui";
 import { useTranslation } from "@/languages";
-import { useIsContentTransparent } from "@/features/settings/store/customizationStore";
 import { PopularItemCard } from "@/features/home/ui/PopularTracksSection";
 import type { PopularItem } from "@/features/home/hooks/usePopularTracks";
 import { useListeningStats } from "../hooks/useListeningStats";
@@ -139,7 +138,6 @@ function SubHeading({ children }: { children: React.ReactNode }) {
 
 function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTop?: string }) {
   const { t, locale } = useTranslation();
-  const hasCustomBg = useIsContentTransparent();
   const [period, setPeriod] = useState<StatsPeriod>("week");
   const [offset, setOffset] = useState(0);
   const { isLoading, range, unit, buckets, summary, genres, hasOlder } = useListeningStats(period, offset);
@@ -176,7 +174,6 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
 
   const maxBucket = useMemo(() => Math.max(0, ...(summary?.bucketMs ?? [0])), [summary]);
   const label = periodLabel(period, offset, range, locale, t);
-  const tileClass = hasCustomBg ? "apple-glass-action" : "bg-bg-elevated";
   const hasData = Boolean(summary && summary.totalMs > 0);
 
   const playsCaption = (plays: number, ms: number) =>
@@ -247,7 +244,7 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
             onClick={() => setOffset((o) => o + 1)}
             disabled={!hasOlder}
             aria-label={t("home.stats.previous")}
-            className="h-[26px] w-[26px] rounded-md flex items-center justify-center border-0 bg-transparent text-text-secondary hover:text-text-primary hover:bg-border-alpha-14 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+            className="h-[26px] w-[26px] rounded-md flex items-center justify-center border-0 bg-transparent text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
           >
             <LeftLine size={16} />
           </button>
@@ -264,7 +261,7 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
             onClick={() => setOffset((o) => Math.max(0, o - 1))}
             disabled={offset === 0}
             aria-label={t("home.stats.next")}
-            className="h-[26px] w-[26px] rounded-md flex items-center justify-center border-0 bg-transparent text-text-secondary hover:text-text-primary hover:bg-border-alpha-14 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+            className="h-[26px] w-[26px] rounded-md flex items-center justify-center border-0 bg-transparent text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
           >
             <RightLine size={16} />
           </button>
@@ -273,7 +270,7 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
 
       <div className="px-8 mt-[10px] grid grid-cols-2 lg:grid-cols-4 gap-2">
         {tiles.map((tile) => (
-          <div key={tile.id} className={`${tileClass} rounded-[6px] px-4 py-3 flex flex-col gap-1 min-w-0`}>
+          <div key={tile.id} className="py-1 flex flex-col gap-1 min-w-0">
             <span className="text-[12px] text-text-tertiary truncate" style={font}>
               {tile.label}
             </span>
@@ -295,7 +292,7 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
         </p>
       ) : (
         <>
-          <div className={`mx-8 mt-2 ${tileClass} rounded-[6px] px-4 pt-3 pb-2`}>
+          <div className="mx-8 mt-4">
             <span className="text-[12px] text-text-tertiary" style={font}>
               {t("home.stats.chart_label")}
             </span>
@@ -317,7 +314,7 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
                   >
                     <div className="group w-full h-full flex items-end cursor-default">
                       <div
-                        className="w-full rounded-t-[4px] bg-violet-400/75 group-hover:bg-violet-400 transition-colors duration-100"
+                        className="w-full rounded-t-[4px] bg-text-primary group-hover:opacity-70 transition-opacity duration-100"
                         style={{ height: `${height}%` }}
                       />
                     </div>
@@ -402,9 +399,9 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
                           {Math.round(genre.share * 100)}% · {formatDuration(genre.listenedMs, t)}
                         </span>
                       </div>
-                      <div className="h-[6px] w-full rounded-full bg-border-alpha-14 overflow-hidden">
+                      <div className="h-[6px] w-full">
                         <div
-                          className="h-full rounded-full bg-violet-400/80"
+                          className="h-full rounded-full bg-text-primary"
                           style={{ width: `${Math.max(2, genre.share * 100)}%` }}
                         />
                       </div>

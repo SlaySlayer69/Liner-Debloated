@@ -309,8 +309,14 @@ function createWindow() {
   });
   mainWindow.on("closed", () => bundleErrorStamp.dispose());
 
-  mainWindow.webContents.on("before-input-event", (_event, input) => {
+  mainWindow.webContents.on("before-input-event", (event, input) => {
     if (input.type === "keyDown") {
+      // F11: real window fullscreen, covers the taskbar; the renderer never sees the key
+      if (input.key === "F11" && !input.control && !input.alt && !input.shift && !input.meta) {
+        event.preventDefault();
+        if (!input.isAutoRepeat) mainWindow?.setFullScreen(!mainWindow.isFullScreen());
+        return;
+      }
       if (
         input.key === "F12" ||
         ((input.control || input.meta) && input.shift && input.key.toLowerCase() === "i")
