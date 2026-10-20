@@ -4,7 +4,6 @@ export {
   default as PopularTracksSection,
   type PopularTracksSectionProps,
 } from "./ui/PopularTracksSection";
-export { default as DailyMixesSection, type DailyMixesSectionProps } from "./ui/DailyMixesSection";
 export {
   usePopular,
   usePopularTracksOnly,

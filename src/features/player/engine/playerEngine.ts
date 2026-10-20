@@ -31,6 +31,7 @@ import { preloadCoverArt } from "@/features/covers";
 import { linerDb, type CachedLyricsRecord } from "@/shared/storage";
 import { showToast } from "@/shared/ui";
 import { createTranslatorSync, getStoredLocale } from "@/languages";
+import { recordListen } from "@/features/stats/recorder";
 import type { Track } from "@/shared/types";
 
 const MAX_CONSECUTIVE_AUTO_SKIPS = 3;
@@ -228,6 +229,15 @@ class PlaybackTelemetryTracker {
         loopCount: this.loopCount,
         hasSeekBackward: this.hasSeekBackward,
         context: this.context,
+      });
+
+      // same listen, kept on this device for the listening statistics
+      recordListen({
+        track: snap,
+        trackId: this.activeTrackId,
+        playedMs: this.playedDurationMs,
+        durationMs: this.trackDurationMs,
+        completed: this.completed,
       });
     }
 
