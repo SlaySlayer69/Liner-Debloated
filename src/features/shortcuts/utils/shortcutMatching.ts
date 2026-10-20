@@ -24,6 +24,17 @@ export function hasModifier(shortcut: string): boolean {
 }
 
 /**
+ * A shortcut may only become system-wide with a modifier (or as an F-key),
+ * otherwise it would swallow plain typing in every other application.
+ */
+export function canBeGlobalShortcut(shortcut: string): boolean {
+  if (!shortcut) return false;
+  if (hasModifier(shortcut)) return true;
+  const parts = splitShortcutParts(shortcut);
+  return parts.length === 1 && /^F\d{1,2}$/i.test(parts[0]);
+}
+
+/**
  * Converts a KeyboardEvent into a canonical English accelerator string.
  * Returns null if only a modifier key is pressed or key is unsupported.
  */

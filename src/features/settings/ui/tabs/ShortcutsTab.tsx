@@ -20,6 +20,7 @@ import {
   FastForwardLine,
   FastRewindLine,
   ExternalLinkLine,
+  GlobeLine,
 } from "@mingcute/react";
 import { useTranslation } from "@/languages";
 import { Dialog, Button, Tooltip, useToast } from "@/shared/ui";
@@ -30,6 +31,7 @@ import {
   type GlobalShortcutsSettings,
   type MainAppShortcutsSettings,
   type MiniplayerShortcutsSettings,
+  type MainAppShortcutAction,
   ResetIcon,
 } from "@/features/shortcuts";
 import { ShortcutRecorder } from "@/features/shortcuts/ui/ShortcutRecorder";
@@ -68,6 +70,23 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
   const setMiniplayerShortcut = useShortcutsStore((state) => state.setMiniplayerShortcut);
   const resetShortcut = useShortcutsStore((state) => state.resetShortcut);
   const resetAll = useShortcutsStore((state) => state.resetAll);
+  const mainAppGlobal = useShortcutsStore((state) => state.mainAppGlobal);
+  const mainAppGlobalStatus = useShortcutsStore((state) => state.mainAppGlobalStatus);
+  const setMainAppGlobal = useShortcutsStore((state) => state.setMainAppGlobal);
+  const canUseGlobal = typeof window !== "undefined" && Boolean(window.linerElectron?.setAppGlobalShortcuts);
+
+  const handleToggleGlobal = useCallback(
+    (action: MainAppShortcutAction) => {
+      const enable = !mainAppGlobal[action];
+      if (!setMainAppGlobal(action, enable)) {
+        toast(
+          t("settings.shortcuts.modifier_required") || "Global shortcuts require Ctrl, Alt, or Shift",
+          "error",
+        );
+      }
+    },
+    [mainAppGlobal, setMainAppGlobal, toast, t],
+  );
 
   const handleConfirmResetAll = useCallback(() => {
     resetAll();
@@ -733,20 +752,60 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
                     </div>
                   </div>
 
-                  {/* Right: Shortcut Recorder */}
-                  <ShortcutRecorder
-                    value={item.value}
-                    defaultValue={item.defaultValue}
-                    onChange={(val) => {
-                      item.onChange(val);
-                      setRecordingId(null);
-                    }}
-                    onReset={item.onReset}
-                    isGlobal={item.scope === "global"}
-                    validateCandidate={item.validateCandidate}
-                    isRecording={isRowRecording}
-                    onRecordingChange={(rec) => setRecordingId(rec ? item.id : null)}
-                  />
+                  {/* Right: Global toggle (main app actions) + Shortcut Recorder */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {item.scope === "mainApp" && canUseGlobal && (() => {
+                      const action = item.id.slice("mainApp-".length) as MainAppShortcutAction;
+                      const isGlobal = Boolean(mainAppGlobal[action]);
+                      const failed = isGlobal && mainAppGlobalStatus[action] === false;
+                      const tooltip = failed
+                        ? t("settings.shortcuts.global_failed")
+                        : isGlobal
+                          ? t("settings.shortcuts.global_on_desc")
+                          : t("settings.shortcuts.global_off_desc");
+                      return (
+                        <Tooltip content={tooltip} side="top" sideOffset={6} multiline>
+                          <button
+                            type="button"
+                            aria-pressed={isGlobal}
+                            aria-label={t("settings.shortcuts.make_global")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleGlobal(action);
+                            }}
+                            className={`h-[26px] px-2.5 rounded-full inline-flex items-center gap-1.5 text-[11.5px] font-[500] border-0 cursor-pointer transition-colors active:scale-[0.96] ${
+                              failed
+                                ? "bg-red-400/10 text-red-300"
+                                : isGlobal
+                                  ? scopeTagStyles.global
+                                  : "bg-transparent text-text-tertiary hover:text-text-primary hover:bg-border-alpha-14"
+                            }`}
+                            style={font}
+                          >
+                            <GlobeLine size={13} />
+                            <span>{scopeTagLabels.global}</span>
+                          </button>
+                        </Tooltip>
+                      );
+                    })()}
+                    <ShortcutRecorder
+                      value={item.value}
+                      defaultValue={item.defaultValue}
+                      onChange={(val) => {
+                        item.onChange(val);
+                        setRecordingId(null);
+                      }}
+                      onReset={item.onReset}
+                      isGlobal={
+                        item.scope === "global" ||
+                        (item.scope === "mainApp" &&
+                          Boolean(mainAppGlobal[item.id.slice("mainApp-".length) as MainAppShortcutAction]))
+                      }
+                      validateCandidate={item.validateCandidate}
+                      isRecording={isRowRecording}
+                      onRecordingChange={(rec) => setRecordingId(rec ? item.id : null)}
+                    />
+                  </div>
                 </div>
               );
             })

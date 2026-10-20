@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 import { playerEngine, usePlayerStore, toVolumeGain, toVolumeLevel } from "@/features/player";
-import { useShortcutsStore, matchesShortcut } from "@/features/shortcuts";
+import {
+  useShortcutsStore,
+  matchesShortcut,
+  type MainAppShortcutAction,
+} from "@/features/shortcuts";
 import {
   isBlockingOverlayOpen,
   isKeyHandledByFocusedControl,
@@ -39,11 +43,116 @@ export interface GlobalShortcutsOptions {
   onEscapeFallback?: () => boolean;
 }
 
+// checked in this order, so a more specific combination wins over a plain key
+const ACTION_ORDER: readonly MainAppShortcutAction[] = [
+  "playPause",
+  "nextTrack",
+  "prevTrack",
+  "toggleFullscreen",
+  "toggleQueue",
+  "toggleLyrics",
+  "toggleMute",
+  "search",
+  "seekBackward",
+  "seekForward",
+  "volumeUp",
+  "volumeDown",
+];
+
+function runAction(
+  action: MainAppShortcutAction,
+  opts: GlobalShortcutsOptions,
+  lastUnmutedLevelRef: { current: number },
+): void {
+  switch (action) {
+    case "playPause":
+      playerEngine.togglePlayPause();
+      return;
+    case "nextTrack":
+      void playerEngine.skipNext();
+      return;
+    case "prevTrack":
+      void playerEngine.skipPrevious();
+      return;
+    case "toggleFullscreen":
+      if (opts.fullscreenOpen) {
+        opts.closeFullscreen();
+      } else {
+        const { currentTrack, status } = usePlayerStore.getState();
+        if (currentTrack !== null && status !== "idle") {
+          opts.openFullscreen();
+        }
+      }
+      return;
+    case "toggleQueue":
+      if (opts.rightPanelOpen && opts.rightPanelTab === "queue") opts.closeRightPanel();
+      else opts.openRightPanel("queue");
+      return;
+    case "toggleLyrics":
+      if (opts.rightPanelOpen && opts.rightPanelTab === "lyrics") opts.closeRightPanel();
+      else opts.openRightPanel("lyrics");
+      return;
+    case "toggleMute": {
+      const level = toVolumeLevel(usePlayerStore.getState().volume);
+      if (level > 0) {
+        lastUnmutedLevelRef.current = level;
+        playerEngine.setVolume(0);
+      } else {
+        playerEngine.setVolume(
+          toVolumeGain(lastUnmutedLevelRef.current || DEFAULT_UNMUTE_LEVEL),
+        );
+      }
+      return;
+    }
+    case "search":
+      opts.openSearch();
+      return;
+    case "seekBackward": {
+      const { positionMs } = usePlayerStore.getState();
+      playerEngine.seek(Math.max(0, positionMs - SEEK_STEP_MS));
+      return;
+    }
+    case "seekForward": {
+      const { positionMs, durationMs } = usePlayerStore.getState();
+      const upperBound = durationMs > 0 ? durationMs : positionMs + SEEK_STEP_MS;
+      playerEngine.seek(Math.min(upperBound, positionMs + SEEK_STEP_MS));
+      return;
+    }
+    case "volumeUp": {
+      const level = toVolumeLevel(usePlayerStore.getState().volume);
+      const nextLevel = roundToPercent(Math.min(1, level + VOLUME_STEP));
+      playerEngine.setVolume(toVolumeGain(nextLevel));
+      if (nextLevel > 0) lastUnmutedLevelRef.current = nextLevel;
+      return;
+    }
+    case "volumeDown": {
+      const level = toVolumeLevel(usePlayerStore.getState().volume);
+      const nextLevel = roundToPercent(Math.max(0, level - VOLUME_STEP));
+      playerEngine.setVolume(toVolumeGain(nextLevel));
+      if (nextLevel > 0) lastUnmutedLevelRef.current = nextLevel;
+      return;
+    }
+  }
+}
+
 export function useGlobalShortcuts(options: GlobalShortcutsOptions): void {
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
   const lastUnmutedLevelRef = useRef(DEFAULT_UNMUTE_LEVEL);
+
+  // shortcuts made global in settings arrive from the main process, focused or not
+  useEffect(() => {
+    const subscribe = typeof window !== "undefined" ? window.linerElectron?.onAppGlobalShortcut : undefined;
+    if (!subscribe) return;
+    return subscribe((action) => {
+      const opts = optionsRef.current;
+      if (opts.enabled === false) return;
+      if (useShortcutsStore.getState().isRecording) return;
+      if (!(ACTION_ORDER as readonly string[]).includes(action)) return;
+      runAction(action as MainAppShortcutAction, opts, lastUnmutedLevelRef);
+    });
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -96,103 +205,14 @@ export function useGlobalShortcuts(options: GlobalShortcutsOptions): void {
       if (isBlockingOverlayOpen()) return;
       if (isKeyHandledByFocusedControl(event.target, code)) return;
 
-      const { mainApp } = useShortcutsStore.getState();
+      const { mainApp, mainAppGlobalStatus } = useShortcutsStore.getState();
 
-      if (matchesShortcut(event, mainApp.playPause)) {
+      for (const action of ACTION_ORDER) {
+        if (!matchesShortcut(event, mainApp[action])) continue;
         event.preventDefault();
-        playerEngine.togglePlayPause();
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.nextTrack)) {
-        event.preventDefault();
-        void playerEngine.skipNext();
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.prevTrack)) {
-        event.preventDefault();
-        void playerEngine.skipPrevious();
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.toggleFullscreen)) {
-        event.preventDefault();
-        if (opts.fullscreenOpen) {
-          opts.closeFullscreen();
-        } else {
-          const { currentTrack, status } = usePlayerStore.getState();
-          if (currentTrack !== null && status !== "idle") {
-            opts.openFullscreen();
-          }
-        }
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.toggleQueue)) {
-        event.preventDefault();
-        if (opts.rightPanelOpen && opts.rightPanelTab === "queue") opts.closeRightPanel();
-        else opts.openRightPanel("queue");
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.toggleLyrics)) {
-        event.preventDefault();
-        if (opts.rightPanelOpen && opts.rightPanelTab === "lyrics") opts.closeRightPanel();
-        else opts.openRightPanel("lyrics");
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.toggleMute)) {
-        event.preventDefault();
-        const level = toVolumeLevel(usePlayerStore.getState().volume);
-        if (level > 0) {
-          lastUnmutedLevelRef.current = level;
-          playerEngine.setVolume(0);
-        } else {
-          playerEngine.setVolume(
-            toVolumeGain(lastUnmutedLevelRef.current || DEFAULT_UNMUTE_LEVEL),
-          );
-        }
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.search)) {
-        event.preventDefault();
-        opts.openSearch();
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.seekBackward)) {
-        event.preventDefault();
-        const { positionMs } = usePlayerStore.getState();
-        playerEngine.seek(Math.max(0, positionMs - SEEK_STEP_MS));
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.seekForward)) {
-        event.preventDefault();
-        const { positionMs, durationMs } = usePlayerStore.getState();
-        const upperBound = durationMs > 0 ? durationMs : positionMs + SEEK_STEP_MS;
-        playerEngine.seek(Math.min(upperBound, positionMs + SEEK_STEP_MS));
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.volumeUp)) {
-        event.preventDefault();
-        const level = toVolumeLevel(usePlayerStore.getState().volume);
-        const nextLevel = roundToPercent(Math.min(1, level + VOLUME_STEP));
-        playerEngine.setVolume(toVolumeGain(nextLevel));
-        if (nextLevel > 0) lastUnmutedLevelRef.current = nextLevel;
-        return;
-      }
-
-      if (matchesShortcut(event, mainApp.volumeDown)) {
-        event.preventDefault();
-        const level = toVolumeLevel(usePlayerStore.getState().volume);
-        const nextLevel = roundToPercent(Math.max(0, level - VOLUME_STEP));
-        playerEngine.setVolume(toVolumeGain(nextLevel));
-        if (nextLevel > 0) lastUnmutedLevelRef.current = nextLevel;
+        // a registered global shortcut already fires through the main process
+        if (mainAppGlobalStatus[action]) return;
+        runAction(action, opts, lastUnmutedLevelRef);
         return;
       }
     };

@@ -18,6 +18,11 @@ export interface MainAppShortcutsSettings {
   toggleFullscreen: string; // e.g. "F" (1 button)
 }
 
+export type MainAppShortcutAction = keyof MainAppShortcutsSettings;
+
+/** main-app actions the user made global (keep working while other apps have focus) */
+export type MainAppGlobalFlags = Partial<Record<MainAppShortcutAction, boolean>>;
+
 export interface MiniplayerShortcutsSettings {
   playPause: string;        // e.g. "Space" (1 button)
   nextTrack: string;        // e.g. "]" (1 button)
