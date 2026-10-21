@@ -41,7 +41,31 @@
     "min": "min",
     "sec": "s"
   },
+  "track_info": {
+    "menu": "Info de la canción",
+    "title": "Info de la canción",
+    "genre": "Género",
+    "album": "Álbum",
+    "released": "Publicada",
+    "duration": "Duración",
+    "track_number": "Pista",
+    "track_of": "{n} de {total}",
+    "disc_of": "disco {n} de {total}",
+    "explicit": "Explícita",
+    "yes": "Sí",
+    "no": "No",
+    "your_plays": "Tus reproducciones",
+    "listening_time": "Tu tiempo de escucha",
+    "first_listened": "Primera escucha",
+    "last_listened": "Última escucha",
+    "never": "Todavía no",
+    "unknown": "Desconocido",
+    "source_note": "El género y los datos del álbum vienen de la búsqueda de iTunes de Apple."
+  },
   "common": {
+    "radio_started": "Radio iniciada",
+    "radio_failed": "No se pudo iniciar la radio",
+    "radio_empty": "No hay nada que reproducir en esta radio",
     "pin_to_sidebar": "Fijar en la barra lateral",
     "unpin_from_sidebar": "Quitar de la barra lateral",
     "pinned_to_sidebar": "Fijado en la barra lateral",
@@ -433,6 +457,11 @@
     "reverb_amount": "Reverberación"
   },
   "playlist": {
+    "suggestions_title": "Canciones sugeridas",
+    "suggestions_hint": "Según esta playlist · clic para escuchar, doble clic para añadir",
+    "suggestions_reload": "Actualizar",
+    "suggestions_empty": "Ahora mismo no hay sugerencias.",
+    "suggestions_failed": "No se pudieron cargar las sugerencias.",
     "playlist": "Lista de reproducción",
     "liked_songs": "Canciones que te gustan",
     "untitled_playlist": "Lista sin título",

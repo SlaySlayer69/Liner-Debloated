@@ -41,7 +41,31 @@
     "min": "мин",
     "sec": "сек"
   },
+  "track_info": {
+    "menu": "О треке",
+    "title": "О треке",
+    "genre": "Жанр",
+    "album": "Альбом",
+    "released": "Дата выхода",
+    "duration": "Длительность",
+    "track_number": "Трек",
+    "track_of": "{n} из {total}",
+    "disc_of": "диск {n} из {total}",
+    "explicit": "Ненормативная лексика",
+    "yes": "Да",
+    "no": "Нет",
+    "your_plays": "Ваши прослушивания",
+    "listening_time": "Ваше время прослушивания",
+    "first_listened": "Впервые",
+    "last_listened": "Последний раз",
+    "never": "Ещё нет",
+    "unknown": "Неизвестно",
+    "source_note": "Жанр и данные альбома взяты из поиска iTunes от Apple."
+  },
   "common": {
+    "radio_started": "Станция запущена",
+    "radio_failed": "Не удалось запустить станцию",
+    "radio_empty": "Для этой станции нечего воспроизвести",
     "pin_to_sidebar": "Закрепить на боковой панели",
     "unpin_from_sidebar": "Открепить от боковой панели",
     "pinned_to_sidebar": "Закреплено на боковой панели",
@@ -435,6 +459,11 @@
     "reverb_amount": "Реверберация"
   },
   "playlist": {
+    "suggestions_title": "Рекомендуемые треки",
+    "suggestions_hint": "На основе этого плейлиста · клик — послушать, двойной клик — добавить",
+    "suggestions_reload": "Обновить",
+    "suggestions_empty": "Сейчас нет рекомендаций.",
+    "suggestions_failed": "Не удалось загрузить рекомендации.",
     "playlist": "Плейлист",
     "liked_songs": "Понравившиеся",
     "untitled_playlist": "Плейлист без названия",

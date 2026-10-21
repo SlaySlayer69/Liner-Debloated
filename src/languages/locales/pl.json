@@ -41,7 +41,31 @@
     "min": "min",
     "sec": "s"
   },
+  "track_info": {
+    "menu": "Informacje o utworze",
+    "title": "Informacje o utworze",
+    "genre": "Gatunek",
+    "album": "Album",
+    "released": "Wydano",
+    "duration": "Czas trwania",
+    "track_number": "Utwór",
+    "track_of": "{n} z {total}",
+    "disc_of": "płyta {n} z {total}",
+    "explicit": "Treści dla dorosłych",
+    "yes": "Tak",
+    "no": "Nie",
+    "your_plays": "Twoje odtworzenia",
+    "listening_time": "Twój czas słuchania",
+    "first_listened": "Pierwszy raz",
+    "last_listened": "Ostatnio",
+    "never": "Jeszcze nie",
+    "unknown": "Nieznane",
+    "source_note": "Gatunek i szczegóły albumu pochodzą z wyszukiwarki iTunes firmy Apple."
+  },
   "common": {
+    "radio_started": "Uruchomiono stację",
+    "radio_failed": "Nie udało się uruchomić stacji",
+    "radio_empty": "Brak utworów dla tej stacji",
     "pin_to_sidebar": "Przypnij do paska bocznego",
     "unpin_from_sidebar": "Odepnij od paska bocznego",
     "pinned_to_sidebar": "Przypięto do paska bocznego",
@@ -437,6 +461,11 @@
     "reverb_amount": "Pogłos"
   },
   "playlist": {
+    "suggestions_title": "Proponowane utwory",
+    "suggestions_hint": "Na podstawie tej playlisty · kliknij, aby posłuchać, kliknij dwukrotnie, aby dodać",
+    "suggestions_reload": "Odśwież",
+    "suggestions_empty": "Brak propozycji.",
+    "suggestions_failed": "Nie udało się wczytać propozycji.",
     "playlist": "Playlista",
     "liked_songs": "Polubione utwory",
     "untitled_playlist": "Playlista bez nazwy",

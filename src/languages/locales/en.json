@@ -41,7 +41,31 @@
     "min": "min",
     "sec": "sec"
   },
+  "track_info": {
+    "menu": "Song info",
+    "title": "Song info",
+    "genre": "Genre",
+    "album": "Album",
+    "released": "Released",
+    "duration": "Duration",
+    "track_number": "Track",
+    "track_of": "{n} of {total}",
+    "disc_of": "disc {n} of {total}",
+    "explicit": "Explicit",
+    "yes": "Yes",
+    "no": "No",
+    "your_plays": "Your plays",
+    "listening_time": "Your listening time",
+    "first_listened": "First listened",
+    "last_listened": "Last listened",
+    "never": "Not yet",
+    "unknown": "Unknown",
+    "source_note": "Genre and album details come from Apple's iTunes search."
+  },
   "common": {
+    "radio_started": "Radio started",
+    "radio_failed": "Couldn't start the radio",
+    "radio_empty": "Nothing to play for this radio",
     "pin_to_sidebar": "Pin to sidebar",
     "unpin_from_sidebar": "Unpin from sidebar",
     "pinned_to_sidebar": "Pinned to sidebar",
@@ -438,6 +462,11 @@
     "reverb_amount": "Reverb"
   },
   "playlist": {
+    "suggestions_title": "Suggested songs",
+    "suggestions_hint": "Based on this playlist · click to listen, double-click to add",
+    "suggestions_reload": "Refresh",
+    "suggestions_empty": "No suggestions right now.",
+    "suggestions_failed": "Suggestions couldn't be loaded.",
     "playlist": "Playlist",
     "liked_songs": "Liked songs",
     "untitled_playlist": "Untitled Playlist",
