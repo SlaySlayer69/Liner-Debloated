@@ -7,10 +7,19 @@ import {
 } from "../store/playerStore";
 import { playerRuntime } from "./playerRuntime";
 import { isRadioContext, shouldRefillRadio } from "./radioMode";
+import {
+  CollectionDeck,
+  COLLECTION_BATCH_OWN,
+  SEEDS_PER_BATCH,
+  collectionRadioContext,
+  interleave,
+  mixRadioBatch,
+  pickSeeds,
+  type CollectionRadioSource,
+} from "./collectionRadio";
 import { pitchShifter } from "./pitchShifter";
 import {
   api,
-  type ApiRadioTrack,
   type LyricsCandidate,
   type LyricsSyncLevel,
   type PlaybackContext,
@@ -274,6 +283,8 @@ class PlayerEngine {
   private radioWaveId: string | null = null;
   // single in-flight similar-tracks request, so a refill and an end-of-queue wait share it
   private radioFetchInFlight: Promise<void> | null = null;
+  // the playlist / album / artist radio that is playing, matched by its playback context
+  private collectionRadio: { context: string; deck: CollectionDeck } | null = null;
   private consecutiveAutoSkips = 0;
   private lastPreloadKey: string | null = null;
   private inFlightLyricsPrefetches = new Map<string, Promise<void>>();
@@ -585,6 +596,67 @@ class PlayerEngine {
         `radio fetch failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  /**
+   * radio on a playlist, album or artist: its songs in shuffled order with similar songs
+   * mixed in, refilled endlessly from changing seeds of the collection
+   */
+  public startCollectionRadio(source: CollectionRadioSource, tracks: Track[]): boolean {
+    const deck = new CollectionDeck(tracks.filter((track) => Boolean(track?.id)));
+    const [first] = deck.draw(1);
+    if (!first) return false;
+
+    const store = usePlayerStore.getState();
+    this.sessionId += 1;
+    const mySession = this.sessionId;
+    this.radioWaveId = newRadioWaveId();
+    const context = collectionRadioContext(source);
+    this.collectionRadio = { context, deck };
+
+    store.setPlaybackContext(context);
+    // a station never loops back to its first track
+    if (store.repeat === "all") store.setRepeat("off");
+    store.setPlaybackContextCover(source.coverUrl || first.coverUrl || null);
+    store.setQueue([first]);
+    this.originalUpcomingQueue = [];
+
+    store.setCurrentTrack(first, 0);
+    store.setPosition(0);
+    store.setDuration(first.durationMs ?? 0);
+    store.setStatus("loading", null);
+
+    if (playerRuntime) {
+      void playerRuntime.loadAndPlay(first);
+    }
+
+    // the first batch comes right away instead of at the refill threshold
+    void this.appendSimilarTracksForSeed(mySession, first.id);
+    log("green", "radio", `started collection radio for ${source.kind} "${source.title}" (${deck.pool.length} songs)`);
+    return true;
+  }
+
+  /** next stretch of a collection radio: fresh own songs, similar songs from a few random seeds */
+  private async nextCollectionRadioBatch(deck: CollectionDeck, queue: Track[], waveId: string): Promise<Track[]> {
+    // own songs may come back, just not while they are among the last ones queued
+    const recent = new Set(queue.slice(-30).map((track) => track.id));
+    const own = deck.draw(COLLECTION_BATCH_OWN, recent);
+    const history = queue.slice(-20).map((track) => track.id);
+    const results = await Promise.allSettled(
+      pickSeeds(deck.pool, SEEDS_PER_BATCH).map((seed) =>
+        api.getRadio(seed.id, { history, k: 10, wave_id: waveId }),
+      ),
+    );
+    const lists = results.map((result) =>
+      result.status === "fulfilled" ? result.value.items.map(toClientTrack) : [],
+    );
+    const ownIds = new Set(deck.pool.map((track) => track.id));
+    const queued = new Set(queue.map((track) => track.id));
+    // similar songs are new to the listener: nothing from the collection, nothing queued already
+    const similar = interleave(lists).filter((track) => !ownIds.has(track.id) && !queued.has(track.id));
+    // the queue ending on an own song (e.g. the one that started the radio) gets a similar one next
+    const endsOnOwn = queue.length > 0 && ownIds.has(queue[queue.length - 1].id);
+    return mixRadioBatch(own, similar, recent, endsOnOwn);
   }
 
   public pause(): void {
@@ -1041,15 +1113,21 @@ class PlayerEngine {
     // keep paginating the same wave instance across queue generations
     if (!this.radioWaveId) this.radioWaveId = newRadioWaveId();
     const waveId = this.radioWaveId;
+    const collection =
+      radio && this.collectionRadio?.context === startContext ? this.collectionRadio : null;
 
-    let items: ApiRadioTrack[];
+    let fetched: Track[];
     try {
-      const response = await api.getRadio(seedTrackId, {
-        history: historyIds.slice(-20),
-        k: 20,
-        wave_id: waveId,
-      });
-      items = response.items;
+      if (collection) {
+        fetched = await this.nextCollectionRadioBatch(collection.deck, currentState.queue, waveId);
+      } else {
+        const response = await api.getRadio(seedTrackId, {
+          history: historyIds.slice(-20),
+          k: 20,
+          wave_id: waveId,
+        });
+        fetched = response.items.map(toClientTrack);
+      }
     } catch (error) {
       log(
         "yellow",
@@ -1065,10 +1143,9 @@ class PlayerEngine {
     if (radio ? state.playbackContext !== startContext : session !== this.sessionId) return;
     if (!radio && !state.autoplaySimilar) return;
 
+    // a collection radio repeats its own songs on purpose, the batch already avoids recent ones
     const queuedIds = new Set(state.queue.map((track) => track.id));
-    const additions = items
-      .map(toClientTrack)
-      .filter((track) => !queuedIds.has(track.id));
+    const additions = collection ? fetched : fetched.filter((track) => !queuedIds.has(track.id));
     if (additions.length === 0) return;
 
     const sample = additions.slice(0, 3).map((t) => `"${t.title}" by ${t.artists || 'Unknown'}`).join(', ');

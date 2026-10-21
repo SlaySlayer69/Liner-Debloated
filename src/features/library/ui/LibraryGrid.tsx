@@ -11,7 +11,8 @@ import type {
 } from "../types";
 import { useTranslation } from "@/languages";
 import { useModalStore } from "../store/modalStore";
-import { LuTrash2 } from "react-icons/lu";
+import { LuTrash2, LuRadio } from "react-icons/lu";
+import { playCollectionRadio } from "@/features/player/engine/playCollectionRadio";
 import { useSidebarPinMenuItem } from "@/features/navigation/hooks/useSidebarPinMenuItem";
 import {
   More2Fill,
@@ -77,7 +78,20 @@ function useItemMenuItems(item: LibraryItemViewModel): DropdownMenuItem[] {
         : item.kind === "album"
           ? "album"
           : "playlist";
+    const ownedPlaylist =
+      item.isOwned ?? (item.kind === "playlist" ? item.href.startsWith("/library/playlist") : false);
     return [
+      {
+        id: "start-collection-radio",
+        label: t("common.start_radio"),
+        icon: <LuRadio size={15} />,
+        onClick: () => {
+          void playCollectionRadio(
+            { kind: entityType, id: item.id, title: item.title, coverUrl: item.imageUrl || undefined },
+            { ownedPlaylist },
+          );
+        },
+      },
       ...(pinItem ? [pinItem] : []),
       {
         id: "remove-from-library",
@@ -91,7 +105,7 @@ function useItemMenuItems(item: LibraryItemViewModel): DropdownMenuItem[] {
             coverUrl: item.imageUrl,
             type: entityType,
             subtitle: item.subtitle,
-            isOwned: item.isOwned ?? (item.kind === "playlist" ? item.href.startsWith("/library/playlist") : false),
+            isOwned: ownedPlaylist,
           });
         },
       },

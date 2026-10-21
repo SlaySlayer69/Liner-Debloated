@@ -41,7 +41,31 @@
     "min": "хв",
     "sec": "сек"
   },
+  "track_info": {
+    "menu": "Про трек",
+    "title": "Про трек",
+    "genre": "Жанр",
+    "album": "Альбом",
+    "released": "Дата виходу",
+    "duration": "Тривалість",
+    "track_number": "Трек",
+    "track_of": "{n} з {total}",
+    "disc_of": "диск {n} з {total}",
+    "explicit": "Ненормативна лексика",
+    "yes": "Так",
+    "no": "Ні",
+    "your_plays": "Ваші прослуховування",
+    "listening_time": "Ваш час прослуховування",
+    "first_listened": "Вперше",
+    "last_listened": "Востаннє",
+    "never": "Ще ні",
+    "unknown": "Невідомо",
+    "source_note": "Жанр і дані альбому взято з пошуку iTunes від Apple."
+  },
   "common": {
+    "radio_started": "Станцію запущено",
+    "radio_failed": "Не вдалося запустити станцію",
+    "radio_empty": "Для цієї станції нічого відтворити",
     "pin_to_sidebar": "Закріпити на бічній панелі",
     "unpin_from_sidebar": "Відкріпити від бічної панелі",
     "pinned_to_sidebar": "Закріплено на бічній панелі",
@@ -435,6 +459,11 @@
     "reverb_amount": "Реверберація"
   },
   "playlist": {
+    "suggestions_title": "Рекомендовані треки",
+    "suggestions_hint": "На основі цього плейлиста · клік — послухати, подвійний клік — додати",
+    "suggestions_reload": "Оновити",
+    "suggestions_empty": "Зараз немає рекомендацій.",
+    "suggestions_failed": "Не вдалося завантажити рекомендації.",
     "playlist": "Плейліст",
     "liked_songs": "Вподобані",
     "untitled_playlist": "Плейліст без назви",

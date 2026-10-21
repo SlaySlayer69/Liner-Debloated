@@ -41,7 +41,31 @@
     "min": "dk",
     "sec": "sn"
   },
+  "track_info": {
+    "menu": "Şarkı bilgisi",
+    "title": "Şarkı bilgisi",
+    "genre": "Tür",
+    "album": "Albüm",
+    "released": "Çıkış",
+    "duration": "Süre",
+    "track_number": "Parça",
+    "track_of": "{n}/{total}",
+    "disc_of": "disk {n}/{total}",
+    "explicit": "Müstehcen",
+    "yes": "Evet",
+    "no": "Hayır",
+    "your_plays": "Dinlemelerin",
+    "listening_time": "Dinleme süren",
+    "first_listened": "İlk dinleme",
+    "last_listened": "Son dinleme",
+    "never": "Henüz yok",
+    "unknown": "Bilinmiyor",
+    "source_note": "Tür ve albüm bilgileri Apple'ın iTunes aramasından gelir."
+  },
   "common": {
+    "radio_started": "İstasyon başlatıldı",
+    "radio_failed": "İstasyon başlatılamadı",
+    "radio_empty": "Bu istasyon için çalınacak bir şey yok",
     "pin_to_sidebar": "Kenar çubuğuna sabitle",
     "unpin_from_sidebar": "Kenar çubuğundan kaldır",
     "pinned_to_sidebar": "Kenar çubuğuna sabitlendi",
@@ -431,6 +455,11 @@
     "reverb_amount": "Yankı"
   },
   "playlist": {
+    "suggestions_title": "Önerilen şarkılar",
+    "suggestions_hint": "Bu çalma listesine göre · dinlemek için tıkla, eklemek için çift tıkla",
+    "suggestions_reload": "Yenile",
+    "suggestions_empty": "Şu an öneri yok.",
+    "suggestions_failed": "Öneriler yüklenemedi.",
     "playlist": "Çalma listesi",
     "liked_songs": "Beğenilen şarkılar",
     "untitled_playlist": "Adsız Çalma Listesi",

@@ -195,3 +195,23 @@ export function summarizeGenres(
     .sort((a, b) => b.listenedMs - a.listenedMs)
     .slice(0, limit);
 }
+
+export interface TrackListening {
+  plays: number;
+  listenedMs: number;
+  firstListenedAt: number | null;
+  lastListenedAt: number | null;
+}
+
+/** how one song was listened to: plays, total time, first and last listen */
+export function summarizeTrackListens(records: readonly PlayRecord[], trackId: string): TrackListening {
+  const result: TrackListening = { plays: 0, listenedMs: 0, firstListenedAt: null, lastListenedAt: null };
+  for (const record of records) {
+    if (record.trackId !== trackId) continue;
+    result.listenedMs += Math.max(0, record.playedMs);
+    if (countsAsPlay(record)) result.plays++;
+    if (result.firstListenedAt === null || record.ts < result.firstListenedAt) result.firstListenedAt = record.ts;
+    if (result.lastListenedAt === null || record.ts > result.lastListenedAt) result.lastListenedAt = record.ts;
+  }
+  return result;
+}

@@ -7,9 +7,11 @@ import {
   LuPlus,
   LuTrash2,
   LuFolderPlus,
+  LuInfo,
 } from "react-icons/lu";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import { playerEngine } from "../engine/playerEngine";
+import { playCollectionRadio } from "../engine/playCollectionRadio";
 import {
   usePlaylistsList,
   useLikeTrack,
@@ -85,6 +87,15 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
 
   const buildMenu = useCallback((): DropdownMenuItem[] => {
     const isTrack = searchType === "track" || !searchType;
+    const songInfoItem: DropdownMenuItem = {
+      id: "song-info",
+      label: t("track_info.menu"),
+      icon: <LuInfo size={15} />,
+      onClick: () => {
+        if (!id) return;
+        useModalStore.getState().openTrackInfo({ id, title, artists, coverUrl, durationMs });
+      },
+    };
 
     if (isTrack) {
       if (playlistId) {
@@ -169,6 +180,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
               });
             },
           },
+          songInfoItem,
         ];
       }
 
@@ -251,10 +263,23 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
             });
           },
         },
+        songInfoItem,
       ];
     }
 
     return [
+      ...(pinKind && id
+        ? [
+            {
+              id: "start-collection-radio",
+              label: t("common.start_radio"),
+              icon: <LuRadio size={15} />,
+              onClick: () => {
+                void playCollectionRadio({ kind: pinKind, id, title, coverUrl: coverUrl || undefined });
+              },
+            },
+          ]
+        : []),
       {
         id: "add-to-library",
         label: t("common.add_to_library"),
@@ -289,6 +314,7 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     handleLike,
     playlistsData,
     pinItem,
+    pinKind,
     t,
   ]);
 

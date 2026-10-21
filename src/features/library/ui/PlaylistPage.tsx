@@ -2,6 +2,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, memo, Suspense } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import PlaylistPageSkeleton from "./PlaylistPageSkeleton";
+import PlaylistSuggestions from "./PlaylistSuggestions";
 import { useToast, ReorderDropPlaceholder, FloatingDragCard, EntitySidebar, SIDEBAR_TITLE_CLASS, SIDEBAR_SUBTITLE_CLASS } from "@/shared/ui";
 import {
   AddLine,
@@ -17,7 +18,8 @@ import {
   Search2Line,
 } from "@mingcute/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LuPencil, LuTrash2, LuText, LuShuffle } from "react-icons/lu";
+import { LuPencil, LuTrash2, LuText, LuShuffle, LuRadio } from "react-icons/lu";
+import { playCollectionRadio } from "@/features/player/engine/playCollectionRadio";
 import { buildShareUrl } from "@/shared/utils/share";
 import Button from "@/shared/ui/Button";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
@@ -798,6 +800,23 @@ function LibraryPlaylistContent() {
                             }
                             items={[
                               {
+                                id: "radio",
+                                icon: <LuRadio size={15} />,
+                                label: t("common.start_radio"),
+                                onClick: () => {
+                                  if (!decodedId) return;
+                                  void playCollectionRadio(
+                                    {
+                                      kind: "playlist",
+                                      id: decodedId,
+                                      title: viewData.title,
+                                      coverUrl: viewData.coverUrl || viewData.coverUrls[0] || undefined,
+                                    },
+                                    { tracks: viewData.tracks, ownedPlaylist: true },
+                                  );
+                                },
+                              },
+                              {
                                 id: "rename",
                                 icon: <LuPencil size={15} />,
                                 label: t("common.rename"),
@@ -955,6 +974,14 @@ function LibraryPlaylistContent() {
                   );
                 })}
               </div>
+              )}
+
+              {!isLikesMode && decodedId && !isFiltering && (
+                <PlaylistSuggestions
+                  playlistId={decodedId}
+                  playlistTitle={viewData.title}
+                  tracks={currentTracks}
+                />
               )}
 
               {isDragging && draggedItem && (

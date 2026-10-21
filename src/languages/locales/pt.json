@@ -41,7 +41,31 @@
     "min": "min",
     "sec": "s"
   },
+  "track_info": {
+    "menu": "Info da música",
+    "title": "Info da música",
+    "genre": "Gênero",
+    "album": "Álbum",
+    "released": "Lançamento",
+    "duration": "Duração",
+    "track_number": "Faixa",
+    "track_of": "{n} de {total}",
+    "disc_of": "disco {n} de {total}",
+    "explicit": "Explícita",
+    "yes": "Sim",
+    "no": "Não",
+    "your_plays": "Suas reproduções",
+    "listening_time": "Seu tempo de escuta",
+    "first_listened": "Primeira vez",
+    "last_listened": "Última vez",
+    "never": "Ainda não",
+    "unknown": "Desconhecido",
+    "source_note": "Gênero e detalhes do álbum vêm da busca do iTunes da Apple."
+  },
   "common": {
+    "radio_started": "Rádio iniciada",
+    "radio_failed": "Não foi possível iniciar a rádio",
+    "radio_empty": "Nada para tocar nesta rádio",
     "pin_to_sidebar": "Fixar na barra lateral",
     "unpin_from_sidebar": "Desafixar da barra lateral",
     "pinned_to_sidebar": "Fixado na barra lateral",
@@ -442,6 +466,11 @@
     "reverb_amount": "Reverb"
   },
   "playlist": {
+    "suggestions_title": "Músicas sugeridas",
+    "suggestions_hint": "Com base nesta playlist · clique para ouvir, clique duplo para adicionar",
+    "suggestions_reload": "Atualizar",
+    "suggestions_empty": "Nenhuma sugestão no momento.",
+    "suggestions_failed": "Não foi possível carregar as sugestões.",
     "playlist": "Playlist",
     "liked_songs": "Curtidas",
     "untitled_playlist": "Playlist sem título",

@@ -17,6 +17,8 @@ export interface SongCardWithMenuProps {
   coverUrl: string;
   className?: string;
   onPlay?: () => void;
+  /** replaces the double-click behaviour from the playback settings */
+  onDoubleClick?: () => void;
   duration?: string;
   durationMs?: number;
   releaseDate?: string;
@@ -46,6 +48,7 @@ function SongCardWithMenu({
   coverUrl,
   className,
   onPlay,
+  onDoubleClick,
   duration,
   durationMs,
   releaseDate,
@@ -160,7 +163,7 @@ function SongCardWithMenu({
       coverUrl={coverUrl}
       className={className}
       onPlay={onPlay}
-      onDoubleClick={handleDoubleClick}
+      onDoubleClick={onDoubleClick ?? handleDoubleClick}
       duration={duration}
       releaseDate={releaseDate}
       explicit={explicit}

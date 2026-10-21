@@ -42,6 +42,8 @@ interface ArtistReleaseViewModel extends ArtistAlbumViewModel {
 }
 
 import { useArtist } from "../hooks/useArtist";
+import { LuRadio } from "react-icons/lu";
+import { playCollectionRadio } from "@/features/player/engine/playCollectionRadio";
 import {
   sidebarPinHref,
   useIsSidebarPinned,
@@ -382,6 +384,25 @@ function ArtistContent() {
                       title={t("artist.add_to_queue")}
                     >
                       <AddLine size={18} />
+                    </Button>
+
+                    <Button
+                      variant={hasCustomBg ? "glass-action" : "outline"}
+                      onClick={() => {
+                        if (!decodedId || !data) return;
+                        void playCollectionRadio(
+                          { kind: "artist", id: decodedId, title: data.title, coverUrl: data.coverUrl || undefined },
+                          { tracks: data.tracks },
+                        );
+                      }}
+                      className={`!h-[38px] !w-[38px] !p-0 flex items-center justify-center transition-colors ${
+                        hasCustomBg
+                          ? ""
+                          : "text-text-secondary hover:text-text-primary bg-bg-panel/40 backdrop-blur-sm"
+                      }`}
+                      title={t("common.start_radio")}
+                    >
+                      <LuRadio size={17} />
                     </Button>
 
                     <Button

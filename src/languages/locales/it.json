@@ -41,7 +41,31 @@
     "min": "min",
     "sec": "s"
   },
+  "track_info": {
+    "menu": "Info brano",
+    "title": "Info brano",
+    "genre": "Genere",
+    "album": "Album",
+    "released": "Uscita",
+    "duration": "Durata",
+    "track_number": "Traccia",
+    "track_of": "{n} di {total}",
+    "disc_of": "disco {n} di {total}",
+    "explicit": "Esplicito",
+    "yes": "Sì",
+    "no": "No",
+    "your_plays": "I tuoi ascolti",
+    "listening_time": "Il tuo tempo di ascolto",
+    "first_listened": "Primo ascolto",
+    "last_listened": "Ultimo ascolto",
+    "never": "Non ancora",
+    "unknown": "Sconosciuto",
+    "source_note": "Genere e dettagli dell'album provengono dalla ricerca iTunes di Apple."
+  },
   "common": {
+    "radio_started": "Stazione avviata",
+    "radio_failed": "Impossibile avviare la stazione",
+    "radio_empty": "Niente da riprodurre per questa stazione",
     "pin_to_sidebar": "Fissa nella barra laterale",
     "unpin_from_sidebar": "Rimuovi dalla barra laterale",
     "pinned_to_sidebar": "Fissato nella barra laterale",
@@ -431,6 +455,11 @@
     "reverb_amount": "Riverbero"
   },
   "playlist": {
+    "suggestions_title": "Brani suggeriti",
+    "suggestions_hint": "In base a questa playlist · clic per ascoltare, doppio clic per aggiungere",
+    "suggestions_reload": "Aggiorna",
+    "suggestions_empty": "Nessun suggerimento al momento.",
+    "suggestions_failed": "Impossibile caricare i suggerimenti.",
     "playlist": "Playlist",
     "liked_songs": "Brani che ti piacciono",
     "untitled_playlist": "Playlist senza titolo",

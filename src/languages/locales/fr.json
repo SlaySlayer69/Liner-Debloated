@@ -41,7 +41,31 @@
     "min": "min",
     "sec": "s"
   },
+  "track_info": {
+    "menu": "Infos du titre",
+    "title": "Infos du titre",
+    "genre": "Genre",
+    "album": "Album",
+    "released": "Sortie",
+    "duration": "Durée",
+    "track_number": "Piste",
+    "track_of": "{n} sur {total}",
+    "disc_of": "disque {n} sur {total}",
+    "explicit": "Explicite",
+    "yes": "Oui",
+    "no": "Non",
+    "your_plays": "Tes écoutes",
+    "listening_time": "Ton temps d'écoute",
+    "first_listened": "Première écoute",
+    "last_listened": "Dernière écoute",
+    "never": "Pas encore",
+    "unknown": "Inconnu",
+    "source_note": "Le genre et les détails de l'album proviennent de la recherche iTunes d'Apple."
+  },
   "common": {
+    "radio_started": "Station lancée",
+    "radio_failed": "Impossible de lancer la station",
+    "radio_empty": "Rien à lire pour cette station",
     "pin_to_sidebar": "Épingler dans la barre latérale",
     "unpin_from_sidebar": "Retirer de la barre latérale",
     "pinned_to_sidebar": "Épinglé dans la barre latérale",
@@ -433,6 +457,11 @@
     "reverb_amount": "Réverbération"
   },
   "playlist": {
+    "suggestions_title": "Titres suggérés",
+    "suggestions_hint": "D'après cette playlist · clic pour écouter, double-clic pour ajouter",
+    "suggestions_reload": "Actualiser",
+    "suggestions_empty": "Aucune suggestion pour le moment.",
+    "suggestions_failed": "Impossible de charger les suggestions.",
     "playlist": "Playlist",
     "liked_songs": "Titres aimés",
     "untitled_playlist": "Playlist sans titre",

@@ -17,7 +17,8 @@ import {
   ArrowLeftLine,
   Search2Line,
 } from "@mingcute/react";
-import { LuShuffle } from "react-icons/lu";
+import { LuShuffle, LuRadio } from "react-icons/lu";
+import { playCollectionRadio } from "@/features/player/engine/playCollectionRadio";
 import Button from "@/shared/ui/Button";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import CoverImage from "@/features/covers/ui/CoverImage";
@@ -549,6 +550,18 @@ function CollectionContent() {
                               </Button>
                             }
                             items={[
+                              {
+                                id: "radio",
+                                icon: <LuRadio size={16} />,
+                                label: t("common.start_radio"),
+                                onClick: () => {
+                                  if (!decodedId || !data) return;
+                                  void playCollectionRadio(
+                                    { kind: entityType, id: decodedId, title: data.title, coverUrl: data.coverUrl || undefined },
+                                    { tracks: data.tracks },
+                                  );
+                                },
+                              },
                               {
                                 id: "library",
                                 icon: inLibrary ? (
