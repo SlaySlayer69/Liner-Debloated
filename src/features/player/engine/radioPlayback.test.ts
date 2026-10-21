@@ -79,4 +79,54 @@ describe("radio playback", () => {
     await playerEngine.skipNext();
     expect(usePlayerStore.getState().currentTrack?.id).toBe("1");
   });
+
+  describe("collection radio", () => {
+    const pool = ["o1", "o2", "o3", "o4"].map(mk);
+    const source = { kind: "playlist" as const, id: "p1", title: "Mine" };
+
+    it("plays one of the collection's songs, then mixes in similar songs that are new", async () => {
+      // similar songs may contain collection songs; those must not count as "similar"
+      getRadio.mockResolvedValue(radioItems(["s1", "o2", "s2"]));
+      expect(playerEngine.startCollectionRadio(source, pool)).toBe(true);
+      const startState = usePlayerStore.getState();
+      expect(startState.playbackContext).toBe("radio:collection:playlist:p1");
+      expect(pool.map((t) => t.id)).toContain(startState.currentTrack?.id);
+
+      await vi.advanceTimersByTimeAsync(0);
+      const queue = usePlayerStore.getState().queue.map((t) => t.id);
+      // every own song, each followed by a new similar one while they last
+      expect(queue.filter((id) => id.startsWith("o")).sort()).toEqual(["o1", "o2", "o3", "o4"]);
+      expect(queue.filter((id) => id.startsWith("s"))).toEqual(["s1", "s2"]);
+      // the song that started the radio is followed by a similar one, then they alternate
+      expect(queue[1]).toBe("s1");
+      expect(queue[2]).toMatch(/^o/);
+      expect(queue[3]).toBe("s2");
+      expect(new Set(queue).size).toBe(queue.length);
+    });
+
+    it("keeps going once the queue runs low, repeating own songs only later", async () => {
+      getRadio.mockResolvedValue(radioItems([]));
+      playerEngine.startCollectionRadio(source, pool.slice(0, 2));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(usePlayerStore.getState().queue).toHaveLength(2);
+
+      getRadio.mockResolvedValue(radioItems(["s9"]));
+      await playerEngine.skipNext(); // last track: refill
+      await vi.advanceTimersByTimeAsync(500);
+      expect(usePlayerStore.getState().queue.map((t) => t.id)).toContain("s9");
+    });
+
+    it("does nothing for an empty collection", () => {
+      expect(playerEngine.startCollectionRadio(source, [])).toBe(false);
+    });
+
+    it("stops refilling for a collection radio that is no longer playing", async () => {
+      getRadio.mockResolvedValue(radioItems(["s1"]));
+      playerEngine.startCollectionRadio(source, pool);
+      await playerEngine.playTrack(mk("x"), [mk("x")], "playlist:other");
+      await vi.advanceTimersByTimeAsync(500);
+      expect(usePlayerStore.getState().queue.map((t) => t.id)).toEqual(["x"]);
+    });
+  });
 });
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarize, summarizeGenres, countsAsPlay, type PlayRecord } from "./aggregate";
+import { summarize, summarizeGenres, summarizeTrackListens, countsAsPlay, type PlayRecord } from "./aggregate";
 
 let seq = 0;
 function rec(partial: Partial<PlayRecord>): PlayRecord {
@@ -102,5 +102,28 @@ describe("summarizeGenres", () => {
       { genre: "Rock", listenedMs: 800_000, share: 0.8 },
       { genre: "Hip-Hop/Rap", listenedMs: 200_000, share: 0.2 },
     ]);
+  });
+});
+
+describe("summarizeTrackListens", () => {
+  it("counts plays, time and first / last listen of one song", () => {
+    const records = [
+      rec({ trackId: "a", ts: 300, playedMs: 200_000 }),
+      rec({ trackId: "b", ts: 100 }),
+      rec({ trackId: "a", ts: 100, playedMs: 5_000, completed: false }),
+      rec({ trackId: "a", ts: 200, playedMs: 40_000, completed: false }),
+    ];
+    expect(summarizeTrackListens(records, "a")).toEqual({
+      plays: 2,
+      listenedMs: 245_000,
+      firstListenedAt: 100,
+      lastListenedAt: 300,
+    });
+    expect(summarizeTrackListens(records, "never")).toEqual({
+      plays: 0,
+      listenedMs: 0,
+      firstListenedAt: null,
+      lastListenedAt: null,
+    });
   });
 });

@@ -47,6 +47,15 @@ export interface RemovePlaylistDetail {
   playlistTitle?: string;
 }
 
+export interface TrackInfoDetail {
+  id: string;
+  title: string;
+  artists: string;
+  coverUrl: string;
+  durationMs?: number;
+  explicit?: boolean;
+}
+
 interface ModalState {
   // Add to library
   addToLibraryOpen: boolean;
@@ -78,6 +87,12 @@ interface ModalState {
   removeFromPlaylistDetail: RemovePlaylistDetail | null;
   openRemoveFromPlaylist: (detail: RemovePlaylistDetail) => void;
   closeRemoveFromPlaylist: () => void;
+
+  // Song info
+  trackInfoOpen: boolean;
+  trackInfoDetail: TrackInfoDetail | null;
+  openTrackInfo: (detail: TrackInfoDetail) => void;
+  closeTrackInfo: () => void;
 
   // Import SoundCloud likes
   importLikesOpen: boolean;
@@ -150,6 +165,11 @@ export const useModalStore = create<ModalState>((set) => ({
     set({ removeFromPlaylistOpen: true, removeFromPlaylistDetail: detail }),
   closeRemoveFromPlaylist: () =>
     set({ removeFromPlaylistOpen: false, removeFromPlaylistDetail: null }),
+
+  trackInfoOpen: false,
+  trackInfoDetail: null,
+  openTrackInfo: (detail) => set({ trackInfoOpen: true, trackInfoDetail: detail }),
+  closeTrackInfo: () => set({ trackInfoOpen: false }),
 
   importLikesOpen: false,
   importLikesInitialUsername: "",
