@@ -1,21 +1,84 @@
 name: Build & Release
 
+# every pull request merged into main builds the installers and puts them on a
+# DRAFT release. drafts are only visible to people with write access to the repo:
+# the upstream license does not allow handing out binaries publicly.
+# "Run workflow" builds the current main the same way.
+
 on:
-  push:
-    tags:
-      - "v*"
-      - "[0-9]+.[0-9]+.[0-9]+*"
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  # two merges in a row must not both pick the same version
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  build-linux:
-    name: Build Linux
+  prepare:
+    name: Pick version
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # lists draft releases too
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.version.outputs.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+
+      - name: Next version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          package_version=$(node -p "require('./package.json').version")
+          tags=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName' || true)
+          version=$(node scripts/next-release-version.mjs "$package_version" $tags)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Next version: $version (package.json: $package_version)"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            script: electron:build:win
+            artifact: windows-installer
+            files: release/*.exe
+          - name: Linux
+            os: ubuntu-latest
+            script: electron:build:linux
+            artifact: linux-packages
+            files: |
+              release/*.AppImage
+              release/*.deb
+          - name: macOS
+            os: macos-latest
+            script: electron:build:mac
+            artifact: macos-packages
+            files: |
+              release/*.dmg
+              release/*.zip
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -31,136 +94,93 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Linux packages (AppImage & deb)
-        run: pnpm run electron:build:linux
+      # only for the build: the installer carries the new version, the repo keeps its own
+      - name: Set version ${{ needs.prepare.outputs.version }}
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version=process.env.VERSION;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+
+      - name: Build
+        run: pnpm run ${{ matrix.script }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
           VITE_API_URL: https://api.tryliner.fun
           VITE_COVERS_PROXY_URL: https://covers.tryliner.fun
-
-      - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: linux-packages
-          path: |
-            release/*.AppImage
-            release/*.deb
-          if-no-files-found: error
-
-  build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Windows installer (NSIS)
-        run: pnpm run electron:build:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VITE_API_URL: https://api.tryliner.fun
-          VITE_COVERS_PROXY_URL: https://covers.tryliner.fun
+          # optional: a default client id for the spotify sync (repo variable)
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
 
       # the drag-to-top snap preview (windows 11) is a native add-on built by
       # electron:build:win (native:build); never ship an installer without it
       - name: Verify native snap preview add-on is packaged
+        if: matrix.name == 'Windows'
         shell: pwsh
         run: |
           $addon = "release/win-unpacked/resources/app.asar.unpacked/native/snap-preview/build/Release/snap_preview.node"
           if (-not (Test-Path $addon)) { throw "snap_preview.node missing from the package: $addon" }
-          Write-Host "ok: $addon ($((Get-Item $addon).Length) bytes)"
-          # it must also load and export everything the app calls (not just exist)
           node scripts/verify-native-addon.cjs $addon
 
-      - name: Upload Windows Artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: windows-installer
-          path: |
-            release/*.exe
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
           if-no-files-found: error
+          retention-days: 3
 
-  build-macos:
-    name: Build macOS
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build macOS packages (DMG & ZIP)
-        run: pnpm run electron:build:mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          VITE_API_URL: https://api.tryliner.fun
-          VITE_COVERS_PROXY_URL: https://covers.tryliner.fun
-
-      - name: Upload macOS Artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: macos-packages
-          path: |
-            release/*.dmg
-            release/*.zip
-          if-no-files-found: error
-
-  publish-release:
-    name: Publish Release
-    needs: [build-linux, build-windows, build-macos]
+  release:
+    name: Draft release
+    needs: [prepare, build]
     runs-on: ubuntu-latest
-    environment: release
-    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
           path: artifacts
 
-      - name: Write checksums
-        run: |
-          cd artifacts
-          sha256sum */*.AppImage */*.deb */*.exe */*.dmg */*.zip 2>/dev/null | sed 's#  [^/]*/#  #' > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
-      - name: Publish to GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          generate_release_notes: true
-          files: |
-            artifacts/linux-packages/*.AppImage
-            artifacts/linux-packages/*.deb
-            artifacts/windows-installer/*.exe
-            artifacts/macos-packages/*.dmg
-            artifacts/macos-packages/*.zip
-            artifacts/SHA256SUMS.txt
-          fail_on_unmatched_files: false
+      - name: Write checksums and notes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          (cd artifacts && sha256sum */* | sed 's#  [^/]*/#  #' > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          {
+            echo "## Liner $VERSION"
+            echo
+            if [ -n "$PR_TITLE" ]; then
+              echo "**$PR_TITLE**"
+              echo
+              # the summary part of the pull request, without the test plan and footer
+              printf '%s\n' "$PR_BODY" | tr -d '\r' | awk '/^## (Test|Testplan|Test plan)/{exit} /^🤖 Generated/{exit} {print}' | head -n 40
+              echo
+              echo "Pull request: $PR_URL"
+            else
+              echo "Build of \`${SHA:0:7}\` from main."
+            fi
+            echo
+            echo "### Installation"
+            echo
+            echo "- **Windows:** \`Liner-Setup-$VERSION.exe\` herunterladen und einfach über die vorhandene Version installieren. Einstellungen, Login und Bibliothek bleiben erhalten."
+            echo "- **Linux:** \`.deb\` oder \`.AppImage\`, **macOS:** \`.dmg\`."
+          } > notes.md
+          cat notes.md
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          gh release create "v$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --target "$SHA" \
+            --title "Liner $VERSION" \
+            --notes-file notes.md \
+            artifacts/*/* artifacts/SHA256SUMS.txt
