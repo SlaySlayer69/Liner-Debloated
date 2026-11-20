@@ -233,6 +233,11 @@ const SETTING_ITEMS: { tabId: TabId; titleKey: string; descKey?: string }[] = [
     titleKey: "settings.theme.title",
     descKey: "settings.theme.description",
   },
+  {
+    tabId: "Appearance",
+    titleKey: "settings.layout_style.title",
+    descKey: "settings.layout_style.description",
+  },
 
   // Storage
   {

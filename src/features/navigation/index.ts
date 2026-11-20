@@ -15,3 +15,8 @@ export {
   type SidebarPin,
   type SidebarPinKind,
 } from "./store/sidebarPinsStore";
+export {
+  useLayoutStyleStore,
+  useIsClassicLayout,
+  type LayoutStyle,
+} from "./store/layoutStyleStore";

@@ -8,9 +8,32 @@ import { SidebarSettingsButton } from "./SidebarSettingsButton";
 export interface SidebarProps {
   searchOpen: boolean;
   onSearchToggle: () => void;
+  /** the pre-0.2.12 look: logo in the header, a full-height icon rail */
+  classic?: boolean;
 }
 
-function Sidebar({ searchOpen, onSearchToggle }: SidebarProps) {
+function ClassicSidebar({ searchOpen, onSearchToggle }: SidebarProps) {
+  return (
+    <div className="h-full w-[58px] rounded-item flex flex-col overflow-hidden bg-bg-glass backdrop-blur-[20px]">
+      <nav className="shrink-0 flex flex-col items-center gap-[20px] pt-[16px] pb-[8px]">
+        <SidebarNavItems
+          searchOpen={searchOpen}
+          onSearchToggle={onSearchToggle}
+        />
+      </nav>
+      <div className="flex-1 min-h-0 flex flex-col">
+        <SidebarLibrary />
+      </div>
+      <div className="shrink-0 flex flex-col items-center pt-[8px] pb-[16px]">
+        <SidebarSettingsButton />
+      </div>
+    </div>
+  );
+}
+
+function Sidebar(props: SidebarProps) {
+  if (props.classic) return <ClassicSidebar {...props} />;
+  const { searchOpen, onSearchToggle } = props;
   return (
     <div className="h-full w-[52px] flex flex-col items-center gap-[6px]">
       {/* one panel for nav and library; hugs its content and scrolls the

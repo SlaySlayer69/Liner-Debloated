@@ -3,11 +3,22 @@ import { useTheme } from "next-themes";
 import { useTranslation, LOCALE_OPTIONS } from "@/languages";
 import { MenuSelect, ToggleSwitch } from "@/shared/ui";
 import { revealThemeChange } from "@/shared/lib";
-import { SettingBlock, SettingRow, SettingSection } from "../controls";
+import {
+  useLayoutStyleStore,
+  type LayoutStyle,
+} from "@/features/navigation/store/layoutStyleStore";
+import {
+  SegmentedControl,
+  SettingBlock,
+  SettingRow,
+  SettingSection,
+} from "../controls";
 import { ThemeCard } from "./ThemeCard";
 
 export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
   const { t, locale, setLocale } = useTranslation();
+  const layoutStyle = useLayoutStyleStore((state) => state.layout);
+  const setLayoutStyle = useLayoutStyleStore((state) => state.setLayout);
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
   const electron = typeof window !== "undefined" ? window.linerElectron : null;
@@ -95,6 +106,25 @@ export function AppearanceTab({ searchQuery }: { searchQuery?: string }) {
           </div>
         ) : null}
       </SettingBlock>
+
+      <SettingRow
+        title={t("settings.layout_style.title")}
+        description={t("settings.layout_style.description")}
+        titleKey="settings.layout_style.title"
+        descKey="settings.layout_style.description"
+        searchQuery={searchQuery}
+        control={
+          <SegmentedControl<LayoutStyle>
+            ariaLabel={t("settings.layout_style.title")}
+            value={layoutStyle}
+            onChange={setLayoutStyle}
+            options={[
+              { value: "modern", label: t("settings.layout_style.modern") },
+              { value: "classic", label: t("settings.layout_style.classic") },
+            ]}
+          />
+        }
+      />
 
       {electron?.setRememberWindowBounds ? (
         <SettingRow

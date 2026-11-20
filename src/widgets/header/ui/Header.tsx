@@ -4,6 +4,8 @@ import WindowControls, {
   WINDOW_CONTROLS_LAYOUT_ID,
   WINDOW_CONTROLS_MORPH,
 } from "@/features/navigation/ui/WindowControls";
+import { Link } from "react-router-dom";
+import logo from "@/assets/logo.svg";
 import { cn } from "@/shared/lib";
 import { HistoryNavIsland } from "./HistoryNavIsland";
 
@@ -11,10 +13,12 @@ export interface HeaderProps {
   searchOpen?: boolean;
   onSearchToggle?: () => void;
   className?: string;
+  /** the pre-0.2.12 header: logo on the left, spanning the whole window */
+  classic?: boolean;
 }
 
 export const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
-  { className },
+  { className, classic = false },
   ref,
 ) {
   return (
@@ -22,10 +26,31 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       ref={ref}
       data-window-drag
       className={cn(
-        "relative z-45 w-full shrink-0 select-none bg-transparent h-[50px] flex items-center justify-end",
+        "relative z-45 w-full shrink-0 select-none bg-transparent h-[50px] flex items-center",
+        classic ? "justify-between" : "justify-end",
         className,
       )}
     >
+      {classic && (
+        <div className="w-[58px] h-full flex items-center justify-center shrink-0">
+          <Link
+            to="/"
+            data-no-window-drag
+            title="Liner"
+            className="flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+          >
+            <img
+              src={logo}
+              alt="Liner"
+              width={39}
+              height={30}
+              className="h-[30px] w-auto object-contain theme-logo invert dark:invert-0 select-none"
+              draggable={false}
+            />
+          </Link>
+        </div>
+      )}
+
       <div className="flex items-center gap-[8px] mr-[6px] shrink-0">
         <HistoryNavIsland />
         <motion.div
