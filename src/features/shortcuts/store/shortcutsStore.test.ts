@@ -10,8 +10,12 @@ describe("shortcutsStore", () => {
 
   it("initializes with default shortcuts across all sections", () => {
     const state = useShortcutsStore.getState();
-    expect(state.global.toggleOverlay).toBe(DEFAULT_SHORTCUTS.global.toggleOverlay);
-    expect(state.global.quickLikeSong).toBe(DEFAULT_SHORTCUTS.global.quickLikeSong);
+    expect(state.global.toggleOverlay).toBe(
+      DEFAULT_SHORTCUTS.global.toggleOverlay,
+    );
+    expect(state.global.quickLikeSong).toBe(
+      DEFAULT_SHORTCUTS.global.quickLikeSong,
+    );
     expect(state.mainApp.playPause).toBe("Space");
     expect(state.mainApp.nextTrack).toBe("Control+Right");
     expect(state.miniplayer.playPause).toBe("Space");
@@ -22,14 +26,22 @@ describe("shortcutsStore", () => {
     const updateOverlaySettings = vi.fn();
     (window as any).linerElectron = { updateOverlaySettings };
 
-    useShortcutsStore.getState().setGlobalShortcut("quickLikeSong", "Ctrl+Alt+L");
-    expect(useShortcutsStore.getState().global.quickLikeSong).toBe("Control+Alt+L");
+    useShortcutsStore
+      .getState()
+      .setGlobalShortcut("quickLikeSong", "Ctrl+Alt+L");
+    expect(useShortcutsStore.getState().global.quickLikeSong).toBe(
+      "Control+Alt+L",
+    );
     expect(updateOverlaySettings).toHaveBeenCalledWith(
-      expect.objectContaining({ likeShortcut: "Control+Alt+L" })
+      expect.objectContaining({ likeShortcut: "Control+Alt+L" }),
     );
 
-    useShortcutsStore.getState().setGlobalShortcut("toggleOverlay", "Alt+Shift+Щ");
-    expect(useShortcutsStore.getState().global.toggleOverlay).toBe("Alt+Shift+O");
+    useShortcutsStore
+      .getState()
+      .setGlobalShortcut("toggleOverlay", "Alt+Shift+Щ");
+    expect(useShortcutsStore.getState().global.toggleOverlay).toBe(
+      "Alt+Shift+O",
+    );
     expect(useOverlaySettingsStore.getState().shortcut).toBe("Alt+Shift+O");
   });
 
@@ -59,12 +71,16 @@ describe("shortcutsStore", () => {
   });
 
   it("resets all shortcuts to defaults", () => {
-    useShortcutsStore.getState().setGlobalShortcut("quickLikeSong", "Alt+Shift+K");
+    useShortcutsStore
+      .getState()
+      .setGlobalShortcut("quickLikeSong", "Alt+Shift+K");
     useShortcutsStore.getState().setMainAppShortcut("toggleMute", "X");
     useShortcutsStore.getState().setMiniplayerShortcut("likeTrack", "Y");
 
     useShortcutsStore.getState().resetAll();
-    expect(useShortcutsStore.getState().global.quickLikeSong).toBe("Alt+Shift+L");
+    expect(useShortcutsStore.getState().global.quickLikeSong).toBe(
+      "Alt+Shift+L",
+    );
     expect(useShortcutsStore.getState().mainApp.toggleMute).toBe("M");
     expect(useShortcutsStore.getState().miniplayer.likeTrack).toBe("L");
   });
@@ -82,57 +98,137 @@ describe("shortcutsStore", () => {
     expect(pauseOverlayShortcuts).toHaveBeenCalledWith(false);
   });
 
-  describe("global main app shortcuts", () => {
-    it("registers flagged actions with electron and records which ones the os accepted", async () => {
-      const setAppGlobalShortcuts = vi.fn(async (list: { action: string }[]) =>
-        list.map(({ action }) => ({ action, ok: action !== "nextTrack" })),
+  it("binds and clears optional global shortcuts and sends them to electron", () => {
+    const updateOverlaySettings = vi.fn();
+    (window as any).linerElectron = { updateOverlaySettings };
+
+    expect(useShortcutsStore.getState().global.playPause).toBe("");
+
+    useShortcutsStore.getState().setGlobalShortcut("playPause", "Ctrl+Alt+P");
+    expect(useShortcutsStore.getState().global.playPause).toBe("Control+Alt+P");
+    expect(updateOverlaySettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mediaShortcuts: expect.objectContaining({
+          playPause: "Control+Alt+P",
+          nextTrack: "",
+        }),
+      }),
+    );
+
+    useShortcutsStore.getState().setGlobalShortcut("playPause", "");
+    expect(useShortcutsStore.getState().global.playPause).toBe("");
+    expect(updateOverlaySettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mediaShortcuts: expect.objectContaining({ playPause: "" }),
+      }),
+    );
+  });
+
+  it("picks up shortcuts another window saved", async () => {
+    const saved = JSON.parse(
+      localStorage.getItem("liner_shortcuts_settings_v1") ?? "{}",
+    );
+    saved.state.miniplayer.nextTrack = "N";
+    localStorage.setItem("liner_shortcuts_settings_v1", JSON.stringify(saved));
+
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: "liner_shortcuts_settings_v1" }),
+    );
+    await vi.waitFor(() =>
+      expect(useShortcutsStore.getState().miniplayer.nextTrack).toBe("N"),
+    );
+  });
+
+  describe("global shortcut registration verdicts", () => {
+    beforeEach(() => {
+      (window as any).linerElectron = { updateOverlaySettings: vi.fn() };
+      useShortcutsStore.setState({ globalStatus: {}, rejectedGlobal: null });
+    });
+
+    it("reverts a freshly recorded bind the os refused and says why", () => {
+      const store = useShortcutsStore.getState();
+      store.commitGlobalShortcut("volumeUp", "Control+Shift+Up");
+      expect(useShortcutsStore.getState().global.volumeUp).toBe(
+        "Control+Shift+UP",
       );
-      (window as any).linerElectron = { setAppGlobalShortcuts };
 
-      expect(useShortcutsStore.getState().setMainAppGlobal("prevTrack", true)).toBe(true);
-      expect(useShortcutsStore.getState().setMainAppGlobal("nextTrack", true)).toBe(true);
-      expect(setAppGlobalShortcuts).toHaveBeenLastCalledWith([
-        { action: "prevTrack", accelerator: "Control+Left" },
-        { action: "nextTrack", accelerator: "Control+Right" },
-      ]);
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(useShortcutsStore.getState().mainAppGlobalStatus).toEqual({ prevTrack: true, nextTrack: false });
+      useShortcutsStore.getState().setGlobalStatus({ volumeUp: "taken" });
 
-      useShortcutsStore.getState().setMainAppGlobal("prevTrack", false);
-      expect(useShortcutsStore.getState().mainAppGlobal).toEqual({ nextTrack: true });
+      const state = useShortcutsStore.getState();
+      expect(state.global.volumeUp).toBe("");
+      expect(state.rejectedGlobal).toEqual({
+        action: "volumeUp",
+        shortcut: "Control+Shift+UP",
+        reason: "taken",
+      });
     });
 
-    it("refuses keys without a modifier and drops the flag when one is assigned", () => {
-      (window as any).linerElectron = { setAppGlobalShortcuts: vi.fn(async () => []) };
+    it("keeps a freshly recorded bind the os accepted", () => {
+      useShortcutsStore
+        .getState()
+        .commitGlobalShortcut("volumeUp", "Control+Shift+Up");
+      useShortcutsStore.getState().setGlobalStatus({ volumeUp: "ok" });
+      useShortcutsStore.getState().setGlobalStatus({ volumeUp: "taken" });
 
-      // Space would swallow typing in every other application
-      expect(useShortcutsStore.getState().setMainAppGlobal("playPause", false)).toBe(true);
-      expect(useShortcutsStore.getState().setMainAppGlobal("playPause", true)).toBe(false);
-      expect(useShortcutsStore.getState().mainAppGlobal.playPause).toBeUndefined();
-
-      useShortcutsStore.getState().setMainAppShortcut("toggleMute", "Alt+M");
-      expect(useShortcutsStore.getState().setMainAppGlobal("toggleMute", true)).toBe(true);
-      useShortcutsStore.getState().setMainAppShortcut("toggleMute", "M");
-      expect(useShortcutsStore.getState().mainAppGlobal.toggleMute).toBeUndefined();
-
-      useShortcutsStore.getState().setMainAppShortcut("search", "F6");
-      expect(useShortcutsStore.getState().setMainAppGlobal("search", true)).toBe(true);
+      expect(useShortcutsStore.getState().global.volumeUp).toBe(
+        "Control+Shift+UP",
+      );
+      expect(useShortcutsStore.getState().rejectedGlobal).toBeNull();
     });
 
-    it("clears all global flags on reset", () => {
-      (window as any).linerElectron = { setAppGlobalShortcuts: vi.fn(async () => []) };
-      useShortcutsStore.getState().setMainAppGlobal("nextTrack", true);
-      useShortcutsStore.getState().resetAll();
-      expect(useShortcutsStore.getState().mainAppGlobal).toEqual({});
+    it("ignores the stale verdict of the previous combo", () => {
+      useShortcutsStore.setState({ globalStatus: { volumeUp: "taken" } });
+      useShortcutsStore
+        .getState()
+        .setGlobalShortcut("volumeUp", "Control+Shift+Up");
+      useShortcutsStore
+        .getState()
+        .commitGlobalShortcut("volumeUp", "Control+Alt+Up");
+
+      useShortcutsStore.getState().setGlobalStatus({ volumeUp: "taken" });
+      expect(useShortcutsStore.getState().global.volumeUp).toBe(
+        "Control+Alt+UP",
+      );
+
+      useShortcutsStore.getState().setGlobalStatus({});
+      useShortcutsStore.getState().setGlobalStatus({ volumeUp: "ok" });
+      expect(useShortcutsStore.getState().global.volumeUp).toBe(
+        "Control+Alt+UP",
+      );
+      expect(useShortcutsStore.getState().rejectedGlobal).toBeNull();
     });
 
-    it("pauses the app's global shortcuts while recording", () => {
-      const pauseAppGlobalShortcuts = vi.fn();
-      (window as any).linerElectron = { pauseAppGlobalShortcuts };
-      useShortcutsStore.getState().setIsRecording(true);
-      expect(pauseAppGlobalShortcuts).toHaveBeenCalledWith(true);
-      useShortcutsStore.getState().setIsRecording(false);
+    it("does not revert binds that were taken at startup", () => {
+      useShortcutsStore
+        .getState()
+        .setGlobalShortcut("volumeDown", "Control+Shift+Down");
+      useShortcutsStore.getState().setGlobalStatus({ volumeDown: "taken" });
+      expect(useShortcutsStore.getState().global.volumeDown).toBe(
+        "Control+Shift+DOWN",
+      );
+      expect(useShortcutsStore.getState().globalStatus.volumeDown).toBe(
+        "taken",
+      );
+    });
+  });
+
+  describe("volume hotkey settings", () => {
+    it("accepts only the offered steps", () => {
+      useShortcutsStore.getState().setVolumeStep(0.1);
+      expect(useShortcutsStore.getState().volumeStep).toBe(0.1);
+      useShortcutsStore.getState().setVolumeStep(0.3 as never);
+      expect(useShortcutsStore.getState().volumeStep).toBe(0.1);
+      useShortcutsStore.getState().setVolumeStep(0.05);
+    });
+
+    it("sends the hold behaviour to the main process", () => {
+      const updateOverlaySettings = vi.fn();
+      (window as any).linerElectron = { updateOverlaySettings };
+      useShortcutsStore.getState().setVolumeHoldRepeats(false);
+      expect(updateOverlaySettings).toHaveBeenCalledWith(
+        expect.objectContaining({ volumeHoldRepeats: false }),
+      );
+      useShortcutsStore.getState().setVolumeHoldRepeats(true);
     });
   });
 });

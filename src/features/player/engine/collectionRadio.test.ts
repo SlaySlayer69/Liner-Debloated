@@ -1,9 +1,22 @@
 import { describe, expect, it } from "vitest";
 import type { Track } from "@/shared/types";
 import { isRadioContext } from "./radioMode";
-import { CollectionDeck, collectionRadioContext, interleave, mixRadioBatch, pickSeeds } from "./collectionRadio";
+import {
+  CollectionDeck,
+  collectionRadioContext,
+  interleave,
+  mixRadioBatch,
+  pickSeeds,
+} from "./collectionRadio";
 
-const t = (id: string): Track => ({ id, title: id, artists: "A", coverUrl: "", durationMs: 1000, playCount: 0 });
+const t = (id: string): Track => ({
+  id,
+  title: id,
+  artists: "A",
+  coverUrl: "",
+  durationMs: 1000,
+  playCount: 0,
+});
 const ids = (tracks: Track[]) => tracks.map((x) => x.id);
 
 // deterministic "random" so shuffles are reproducible
@@ -25,25 +38,44 @@ describe("collectionRadioContext", () => {
 
 describe("mixRadioBatch", () => {
   it("alternates own and similar songs and appends what is left", () => {
-    expect(ids(mixRadioBatch([t("o1"), t("o2"), t("o3")], [t("s1"), t("s2")]))).toEqual(["o1", "s1", "o2", "s2", "o3"]);
-    expect(ids(mixRadioBatch([t("o1")], [t("s1"), t("s2"), t("s3")]))).toEqual(["o1", "s1", "s2", "s3"]);
+    expect(
+      ids(mixRadioBatch([t("o1"), t("o2"), t("o3")], [t("s1"), t("s2")])),
+    ).toEqual(["o1", "s1", "o2", "s2", "o3"]);
+    expect(ids(mixRadioBatch([t("o1")], [t("s1"), t("s2"), t("s3")]))).toEqual([
+      "o1",
+      "s1",
+      "s2",
+      "s3",
+    ]);
   });
 
   it("can start with a similar song", () => {
-    expect(ids(mixRadioBatch([t("o1"), t("o2")], [t("s1"), t("s2")], new Set(), true))).toEqual(["s1", "o1", "s2", "o2"]);
+    expect(
+      ids(
+        mixRadioBatch([t("o1"), t("o2")], [t("s1"), t("s2")], new Set(), true),
+      ),
+    ).toEqual(["s1", "o1", "s2", "o2"]);
   });
 
   it("drops duplicates and excluded ids", () => {
-    const mixed = mixRadioBatch([t("o1"), t("o2")], [t("o1"), t("s1"), t("s1"), t("q")], new Set(["q", "o2"]));
+    const mixed = mixRadioBatch(
+      [t("o1"), t("o2")],
+      [t("o1"), t("s1"), t("s1"), t("q")],
+      new Set(["q", "o2"]),
+    );
     expect(ids(mixed)).toEqual(["o1", "s1"]);
     // repeated similar songs don't eat the turn of the next one
-    expect(ids(mixRadioBatch([t("o1"), t("o2")], [t("s1"), t("s1"), t("s2")]))).toEqual(["o1", "s1", "o2", "s2"]);
+    expect(
+      ids(mixRadioBatch([t("o1"), t("o2")], [t("s1"), t("s1"), t("s2")])),
+    ).toEqual(["o1", "s1", "o2", "s2"]);
   });
 });
 
 describe("interleave", () => {
   it("takes one from each list in turn", () => {
-    expect(interleave([[1, 2, 3], [10], [20, 21]])).toEqual([1, 10, 20, 2, 21, 3]);
+    expect(interleave([[1, 2, 3], [10], [20, 21]])).toEqual([
+      1, 10, 20, 2, 21, 3,
+    ]);
     expect(interleave([])).toEqual([]);
   });
 });
@@ -64,7 +96,9 @@ describe("CollectionDeck", () => {
     const deck = new CollectionDeck(pool, seeded(7));
     const first = ids(deck.draw(3));
     const second = ids(deck.draw(2));
-    expect(new Set([...first, ...second])).toEqual(new Set(["a", "b", "c", "d", "e"]));
+    expect(new Set([...first, ...second])).toEqual(
+      new Set(["a", "b", "c", "d", "e"]),
+    );
     // deck exhausted: keeps dealing from a fresh shuffle
     expect(deck.draw(4)).toHaveLength(4);
   });

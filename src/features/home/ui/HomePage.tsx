@@ -1,49 +1,47 @@
-import { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import PopularTracksSection from "./PopularTracksSection";
 import HomePageSkeleton from "./HomePageSkeleton";
 import { useRecentlyPlayed } from "../hooks/useRecentlyPlayed";
+import { useMostSaved, usePopularAlbums } from "../hooks/useExploreCollections";
 import { StatisticsSection } from "@/features/stats";
-import { useLikedTracks } from "@/features/library/hooks/useLikedTracks";
-import { playerEngine } from "@/features/player";
-import SongCard from "@/features/player/ui/SongCard";
-import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import { useTranslation } from "@/languages";
-import { useIsContentTransparent } from "@/features/settings/store/customizationStore";
-import { TimeFill, HeartFill, FlashCircleFill } from "@mingcute/react";
+import Button from "@/shared/ui/Button";
+import { usePageBackdrop } from "@/shared/lib";
+import { AlbumFill, BookmarkFill, TimeFill } from "@mingcute/react";
 
 export default function HomePage() {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const hasCustomBg = useIsContentTransparent();
-  const { data: likedData, isLoading: likedLoading } = useLikedTracks();
+  const [attempt, setAttempt] = useState(0);
+  return <HomeFeed key={attempt} onRetry={() => setAttempt((n) => n + 1)} />;
+}
 
+function HomeFeed({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+
+  // no daily mixes, "listening right now" or "most listened of all time" on this home:
+  // the listening statistics take their place below "jump back in"
   const { data: recentlyPlayed, isLoading: recentLoading } =
     useRecentlyPlayed(20);
+  const { items: popularAlbums, isLoading: albumsLoading } = usePopularAlbums();
+  const { items: mostSaved, isLoading: savedLoading } = useMostSaved();
+  const firstAlbum = popularAlbums[0];
+  const firstAlbumCover =
+    firstAlbum?.type === "album" ? firstAlbum.item.coverUrl : undefined;
+  const firstRecent = recentlyPlayed?.[0];
+  usePageBackdrop(
+    firstAlbumCover ||
+      (firstRecent?.type === "track" || firstRecent?.type === "album"
+        ? firstRecent.item.coverUrl
+        : undefined) ||
+      undefined,
+  );
 
-  const isDataLoading = recentLoading || likedLoading;
-
-  // Ambient time-of-day colored glow
-  const glowClass = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) {
-      return "from-amber-500/20 via-orange-500/10 to-transparent";
-    } else if (hour >= 12 && hour < 17) {
-      return "from-amber-400/20 via-sky-500/10 to-transparent";
-    } else if (hour >= 17 && hour < 22) {
-      return "from-rose-500/20 via-purple-500/10 to-transparent";
-    }
-    return "from-indigo-600/25 via-violet-600/15 to-transparent";
-  }, []);
-
-  // Quick mix items: up to 5 recently played items (tracks or albums)
-  const quickRecentItems = useMemo(() => {
-    return (recentlyPlayed || []).slice(0, 5);
-  }, [recentlyPlayed]);
-
-  const hasEnoughQuickData = quickRecentItems.length >= 5;
+  const isDataLoading = recentLoading || albumsLoading || savedLoading;
 
   const isReady = !isDataLoading;
+  const nothingLoaded =
+    popularAlbums.length === 0 &&
+    !recentlyPlayed?.length &&
+    mostSaved.length === 0;
   const [skeletonExited, setSkeletonExited] = useState(() => !isDataLoading);
 
   useEffect(() => {
@@ -55,137 +53,78 @@ export default function HomePage() {
     }
   }, [isReady, skeletonExited]);
 
-  const quickCardClass = hasCustomBg
-    ? "apple-glass-action"
-    : "bg-bg-elevated hover:bg-[#dedee3] dark:hover:bg-border-alpha-14 transition-colors duration-150 ease-out";
-
   return (
-    <div className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-transparent">
-
-      <div
-        data-window-drag
-        className="sticky top-0 z-20 h-[32px] w-full shrink-0 select-none pointer-events-auto"
-        style={{ marginBottom: "-32px" }}
-        aria-hidden="true"
-      />
-      {!hasCustomBg && (
-        <div
-          aria-hidden="true"
-          className={`pointer-events-none absolute -top-8 -left-8 w-[380px] h-[200px] bg-gradient-to-br ${glowClass} blur-3xl opacity-60`}
-        />
-      )}
-
+    // the header only sits on the right now, so the feed starts at the top:
+    // the 36px "Your Mixes" row is centred on the sidebar logo (16px + 23px / 2)
+    <div className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-transparent pt-[10px] pb-(--page-inset-bottom)">
       <div className="relative z-1 grid grid-cols-1 items-start w-full">
-        {/* Real Content Layer */}
-        {isReady && (
+        {isReady && nothingLoaded && (
+          <div className="col-start-1 row-start-1 flex min-h-[60vh] w-full flex-col items-center justify-center gap-[6px] px-[24px] text-center">
+            <span className="text-title font-[600] text-text-primary">
+              {t("home.load_failed")}
+            </span>
+            <span className="text-body text-text-secondary">
+              {t("playlist.load_failed_desc")}
+            </span>
+            <Button
+              variant="secondary"
+              onClick={onRetry}
+              className="mt-[10px] !h-[36px] !rounded-[10px] !border-0 px-[16px]"
+            >
+              {t("offline.try_again")}
+            </Button>
+          </div>
+        )}
+
+        {isReady && !nothingLoaded && (
           <div className="col-start-1 row-start-1 w-full pb-[16px]">
-            {hasEnoughQuickData && (
-              <div className="flex flex-col">
-              <div className="mt-[20px] px-8 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex items-center shrink-0">
-                    <FlashCircleFill className="w-5 h-5 text-amber-400" />
-                    </div>
-                    <h2
-                      className="text-text-primary text-[21px] font-semibold m-0 leading-tight tracking-tight"
-                      style={{ fontFamily: "var(--font-inter), sans-serif" }}
-                    >
-                      {t("home.speedDial") || "Speed dial"}
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="px-8 mt-[12px] relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  <SongCard
-                    title={t("library.liked_songs")}
-                    artists={`${likedData.total} ${likedData.total === 1 ? t("library.song") : t("library.songs")}`}
-                    artistsClickable={false}
-                    coverUrl=""
-                    icon={<HeartFill size={22} className={hasCustomBg ? "text-white/80" : "text-zinc-400 dark:text-zinc-500"} />}
-                    onPlay={() => navigate("/library/playlist?id=likes")}
-                    compact
-                    className={quickCardClass}
-                  />
-
-                  {/* Recently Played Quick Cards */}
-                  {quickRecentItems.map((entry, idx) => {
-                    if (entry.type === "album") {
-                      const album = entry.item;
-                      return (
-                        <SongCardWithMenu
-                          key={`quick-album-${album.id}-${idx}`}
-                          id={album.id}
-                          title={album.title}
-                          artists={album.artist}
-                          coverUrl={album.coverUrl ?? ""}
-                          onPlay={() =>
-                            navigate(
-                              `/collection?type=album&id=${encodeURIComponent(album.id)}`,
-                            )
-                          }
-                          searchType="album"
-                          compact
-                          className={quickCardClass}
-                        />
-                      );
-                    }
-                    if (entry.type === "track") {
-                      const track = entry.item;
-                      return (
-                        <SongCardWithMenu
-                          key={`quick-track-${track.id}-${idx}`}
-                          id={track.id}
-                          title={track.title}
-                          artists={track.artists}
-                          coverUrl={track.coverUrl ?? ""}
-                          durationMs={track.durationMs}
-                          explicit={track.explicit}
-                          onPlay={() => {
-                            void playerEngine.playTrack(
-                              track,
-                              [track],
-                              `${track.title} Radio`,
-                              track.coverUrl,
-                            );
-                          }}
-                          searchType="track"
-                          compact
-                          className={quickCardClass}
-                        />
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
-              </div>
+            {popularAlbums.length > 0 && (
+              <PopularTracksSection
+                title={t("home.popularAlbums")}
+                icon={<AlbumFill />}
+                items={popularAlbums}
+                headingMarginTop="mt-0"
+              />
             )}
 
-          {/* Jump Back In (History) */}
-          {recentlyPlayed && recentlyPlayed.length > 0 && (
-            <PopularTracksSection
-              title={t("home.jumpBackIn")}
-              icon={<TimeFill className="w-5 h-5 text-sky-400" />}
-              items={recentlyPlayed}
-              headingMarginTop="mt-[22px]"
-            />
-          )}
+            {recentlyPlayed && recentlyPlayed.length > 0 && (
+              <PopularTracksSection
+                title={t("home.jumpBackIn")}
+                icon={<TimeFill />}
+                items={recentlyPlayed}
+                headingMarginTop={
+                  popularAlbums.length > 0 ? "mt-[22px]" : "mt-0"
+                }
+              />
+            )}
 
-          {/* Listening statistics */}
-          <StatisticsSection headingMarginTop="mt-[22px]" />
-        </div>
-      )}
+            <StatisticsSection headingMarginTop="mt-[22px]" />
 
-      {/* Direct Crossfade Skeleton Layer */}
-      {!skeletonExited && (
-        <div
-          className={`col-start-1 row-start-1 w-full z-10 transition-opacity duration-300 ease-out ${
-            isReady ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"
-          }`}
-          onTransitionEnd={() => setSkeletonExited(true)}
-        >
-          <HomePageSkeleton glowClass={glowClass} showQuickGrid={hasEnoughQuickData} />
-        </div>
-      )}
+            {mostSaved.length > 0 && (
+              <PopularTracksSection
+                title={t("home.mostSaved")}
+                icon={<BookmarkFill />}
+                items={mostSaved}
+                headingMarginTop="mt-[22px]"
+              />
+            )}
+          </div>
+        )}
+
+        {!skeletonExited && (
+          <div
+            className={`col-start-1 row-start-1 w-full z-10 transition-opacity duration-300 ease-out ${
+              isReady
+                ? "opacity-0 pointer-events-none"
+                : "opacity-100 pointer-events-auto"
+            }`}
+            onTransitionEnd={(event) => {
+              if (event.target === event.currentTarget) setSkeletonExited(true);
+            }}
+          >
+            <HomePageSkeleton />
+          </div>
+        )}
       </div>
     </div>
   );

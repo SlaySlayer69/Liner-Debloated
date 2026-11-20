@@ -1,15 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { api } from "@/shared/api";
 import type { Track } from "@/shared/types";
-import { fetchPlaylistSuggestions, SUGGESTION_COUNT } from "./usePlaylistSuggestions";
+import {
+  fetchPlaylistSuggestions,
+  SUGGESTION_COUNT,
+} from "./usePlaylistSuggestions";
 
 vi.mock("@/shared/api", () => ({
   api: { getRadio: vi.fn() },
-  toClientTrack: (track: any) => ({ id: track.id, title: track.id, artists: "", coverUrl: "", durationMs: 0, playCount: 0 }),
+  toClientTrack: (track: any) => ({
+    id: track.id,
+    title: track.id,
+    artists: "",
+    coverUrl: "",
+    durationMs: 0,
+    playCount: 0,
+  }),
 }));
 
-const t = (id: string): Track => ({ id, title: id, artists: "", coverUrl: "", durationMs: 0, playCount: 0 });
-const radio = (...ids: string[]) => ({ items: ids.map((id) => ({ id })) }) as any;
+const t = (id: string): Track => ({
+  id,
+  title: id,
+  artists: "",
+  coverUrl: "",
+  durationMs: 0,
+  playCount: 0,
+});
+const radio = (...ids: string[]) =>
+  ({ items: ids.map((id) => ({ id })) }) as any;
 
 describe("fetchPlaylistSuggestions", () => {
   beforeEach(() => {
@@ -37,14 +55,18 @@ describe("fetchPlaylistSuggestions", () => {
 
   it("caps the list and tolerates a failing seed", async () => {
     const many = Array.from({ length: 30 }, (_, i) => `s${i}`);
-    vi.mocked(api.getRadio).mockRejectedValueOnce(new Error("down")).mockResolvedValue(radio(...many));
+    vi.mocked(api.getRadio)
+      .mockRejectedValueOnce(new Error("down"))
+      .mockResolvedValue(radio(...many));
     const result = await fetchPlaylistSuggestions([t("p1"), t("p2")]);
     expect(result).toHaveLength(SUGGESTION_COUNT);
   });
 
   it("fails when every lookup fails, and needs songs to start from", async () => {
     vi.mocked(api.getRadio).mockRejectedValue(new Error("offline"));
-    await expect(fetchPlaylistSuggestions([t("p1")])).rejects.toThrow("offline");
+    await expect(fetchPlaylistSuggestions([t("p1")])).rejects.toThrow(
+      "offline",
+    );
     expect(await fetchPlaylistSuggestions([])).toEqual([]);
   });
 });

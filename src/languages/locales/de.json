@@ -41,37 +41,7 @@
     "min": "Min.",
     "sec": "Sek."
   },
-  "track_info": {
-    "menu": "Song-Infos",
-    "title": "Song-Infos",
-    "genre": "Genre",
-    "album": "Album",
-    "released": "Erschienen",
-    "duration": "Dauer",
-    "track_number": "Titelnummer",
-    "track_of": "{n} von {total}",
-    "disc_of": "CD {n} von {total}",
-    "explicit": "Explizit",
-    "yes": "Ja",
-    "no": "Nein",
-    "your_plays": "Deine Wiedergaben",
-    "listening_time": "Deine Hörzeit",
-    "first_listened": "Zuerst gehört",
-    "last_listened": "Zuletzt gehört",
-    "never": "Noch nicht",
-    "unknown": "Unbekannt",
-    "source_note": "Genre und Albumdetails stammen aus der iTunes-Suche von Apple."
-  },
   "common": {
-    "radio_started": "Radio gestartet",
-    "radio_failed": "Radio konnte nicht gestartet werden",
-    "radio_empty": "Für dieses Radio gibt es nichts abzuspielen",
-    "pin_to_sidebar": "An Seitenleiste anheften",
-    "unpin_from_sidebar": "Von Seitenleiste lösen",
-    "pinned_to_sidebar": "An Seitenleiste angeheftet",
-    "unpinned_from_sidebar": "Von Seitenleiste gelöst",
-    "move_up": "Nach oben",
-    "move_down": "Nach unten",
     "app": {
       "name": "Liner",
       "description": "Mehr von dem, was du magst",
@@ -103,6 +73,7 @@
     "save_to_library": "Zur Mediathek hinzufügen",
     "share": "Teilen",
     "back": "Zurück",
+    "forward": "Vorwärts",
     "link_copied": "Link kopiert",
     "download": "Download",
     "more": "Mehr",
@@ -216,7 +187,21 @@
     "tracks_plural": "{count} Titel",
     "songs_plural": "{count} Titel",
     "env_warning": "Die App sollte in Electron laufen – Deeplinks, Offline-Prüfungen und Teilen benötigen die Desktop-Bridge.",
-    "env_skip": "Überspringen"
+    "env_skip": "Überspringen",
+    "remove_from_queue": "Aus der Warteschlange entfernen",
+    "remove_from_cache": "Aus dem Cache entfernen",
+    "removed_from_cache": "Aus dem Cache entfernt",
+    "removed_from_queue": "Aus der Warteschlange entfernt",
+    "undo": "Rückgängig",
+    "pin_to_sidebar": "An Seitenleiste anheften",
+    "unpin_from_sidebar": "Von Seitenleiste lösen",
+    "pinned_to_sidebar": "An Seitenleiste angeheftet",
+    "unpinned_from_sidebar": "Von Seitenleiste gelöst",
+    "move_up": "Nach oben",
+    "move_down": "Nach unten",
+    "radio_started": "Radio gestartet",
+    "radio_failed": "Radio konnte nicht gestartet werden",
+    "radio_empty": "Für dieses Radio gibt es nichts abzuspielen"
   },
   "home": {
     "speedDial": "Schnellzugriff",
@@ -230,6 +215,7 @@
     "mostListened": "Die meistgehörte Musik aller Zeiten",
     "jumpBackIn": "Weiter geht’s",
     "popularAlbums": "Top-Alben",
+    "mostSaved": "Am häufigsten gespeichert",
     "popularArtists": "Künstler im Trend",
     "popularPlaylists": "Beliebte Playlists",
     "dailyMixes": "Daily Mixes",
@@ -273,9 +259,11 @@
     "songs": "Titel",
     "track": "Titel",
     "tracks": "Titel",
+    "tab_all": "Alle",
     "tab_playlists": "Playlists",
     "tab_albums": "Alben",
     "tab_artists": "Künstler",
+    "search_all": "Bibliothek durchsuchen",
     "search_playlists": "Playlists durchsuchen",
     "search_albums": "Alben durchsuchen",
     "search_artists": "Künstler durchsuchen",
@@ -304,10 +292,11 @@
     "auth_subtitle_register": "Erstelle ein Konto und baue deine persönliche Mediathek auf.",
     "profile_setup_title": "Richte dein Profil ein",
     "profile_setup_subtitle": "Wähle deinen eindeutigen Benutzernamen und deinen Anzeigenamen.",
-    "step_indicator": "Schritt {step} von {total}",
     "btn_continue": "Weiter",
     "btn_back": "Zurück",
     "username_hint": "3–30 Kleinbuchstaben, Zahlen oder Unterstriche.",
+    "username_checking": "Prüfe, ob der Benutzername frei ist...",
+    "username_available": "Dieser Benutzername ist frei.",
     "label_email": "E-Mail",
     "label_username": "Benutzername (@handle)",
     "placeholder_username": "soundwave",
@@ -403,6 +392,10 @@
     }
   },
   "player": {
+    "mute": "Stummschalten",
+    "unmute": "Ton an",
+    "decrease": "Verringern",
+    "increase": "Erhöhen",
     "repeat_off": "Wiederholung: aus",
     "repeat_all": "Wiederholung: alle",
     "repeat_one": "Wiederholung: Titel",
@@ -414,7 +407,7 @@
     "repeat": "Wiederholung",
     "previous": "Vorher",
     "open_player": "Player öffnen",
-    "next":"Weiter",
+    "next": "Weiter",
     "lyrics_upgraded": "Songtext verbessert!",
     "playing_from": "Wiedergabe von",
     "autoplay_radio": "Autoplay-Radio",
@@ -441,6 +434,8 @@
     "track_unavailable": "„{title}“ ist nicht verfügbar und wird übersprungen…",
     "track_unavailable_title": "Titel nicht verfügbar",
     "playback_stopped_too_many_errors": "Wiedergabe gestoppt – zu viele Titel konnten nicht geladen werden.",
+    "youtube_refused_title": "YouTube lehnt diese Verbindung ab",
+    "youtube_refused_description": "Audio von YouTube ist in diesem Netzwerk blockiert. Schalte VPN oder Proxy aus oder nutze eine andere Verbindung.",
     "speed_pitch": "Tempo & Tonhöhe",
     "speed": "Tempo",
     "pitch": "Tonhöhe",
@@ -457,14 +452,30 @@
     "preset_nightcore": "1,35x Nightcore",
     "reverb": "Hall",
     "reverb_hint": "Atmosphärischer Raum & Tiefe",
-    "reverb_amount": "Hall"
+    "reverb_amount": "Hall",
+    "beta_visuals": {
+      "label": "Warnung",
+      "ambient_title": "Ambient ist in der Beta",
+      "ambient_body": "Dieser Track hat einen eigenen animierten Hintergrund. Er ist noch in der Beta und kann schwächere Geräte belasten. Wähle einen leichteren Modus, wenn der Player ruckelt.",
+      "settings_title": "Visuelle Qualität",
+      "settings_body": "Lege fest, wie lebendig der Vollbild-Player ist. Leichtere Modi schonen den Akku und laufen auf schwächeren Geräten flüssiger.",
+      "modes": {
+        "full": {
+          "name": "Alle Effekte",
+          "hint": "Alles an, inklusive unscharfer Textränder"
+        },
+        "balanced": {
+          "name": "Ausgewogen",
+          "hint": "Lebendige Hintergründe, ohne Textunschärfe"
+        },
+        "lite": {
+          "name": "Leicht",
+          "hint": "Ruhiges Cover, schlichter Text"
+        }
+      }
+    }
   },
   "playlist": {
-    "suggestions_title": "Vorgeschlagene Songs",
-    "suggestions_hint": "Passend zu dieser Playlist · Klick zum Anhören, Doppelklick zum Hinzufügen",
-    "suggestions_reload": "Neu laden",
-    "suggestions_empty": "Gerade keine Vorschläge.",
-    "suggestions_failed": "Vorschläge konnten nicht geladen werden.",
     "playlist": "Playlist",
     "liked_songs": "Lieblingstitel",
     "untitled_playlist": "Unbenannte Playlist",
@@ -480,7 +491,12 @@
     "min": "Min.",
     "sec": "Sek.",
     "empty_title": "Diese Playlist ist leer",
-    "empty_subtitle": "Suche nach Titeln, die du hinzufügen möchtest"
+    "empty_subtitle": "Suche nach Titeln, die du hinzufügen möchtest",
+    "suggestions_title": "Vorgeschlagene Songs",
+    "suggestions_hint": "Passend zu dieser Playlist · Klick zum Anhören, Doppelklick zum Hinzufügen",
+    "suggestions_reload": "Neu laden",
+    "suggestions_empty": "Gerade keine Vorschläge.",
+    "suggestions_failed": "Vorschläge konnten nicht geladen werden."
   },
   "search": {
     "placeholder": "Titel, Künstler oder Alben suchen",
@@ -493,13 +509,6 @@
     "type_to_search": "Gib einen Suchbegriff ein"
   },
   "settings": {
-    "shortcuts": {
-      "make_global": "Shortcut global machen",
-      "modifier_required": "Globale Shortcuts benötigen Strg, Alt oder Umschalt",
-      "global_on_desc": "Global: funktioniert auch, wenn eine andere App im Vordergrund ist. Klicken, um ihn wieder nur in Liner zu nutzen.",
-      "global_off_desc": "Global machen, damit er auch funktioniert, wenn eine andere App im Vordergrund ist (benötigt Strg, Alt oder Umschalt).",
-      "global_failed": "Konnte nicht systemweit registriert werden, wahrscheinlich nutzt eine andere App diese Kombination. Wähle eine andere."
-    },
     "title": "Einstellungen",
     "search_placeholder": "Einstellungen durchsuchen…",
     "subtitle": "Verwalte deine Präferenzen",
@@ -507,6 +516,9 @@
     "save_preferences": "Einstellungen speichern",
     "groups": {
       "preferences": "Präferenzen",
+      "player": "Player",
+      "interface": "Oberfläche",
+      "integrations": "Integrationen",
       "application": "Anwendung",
       "help": "Hilfe"
     },
@@ -516,8 +528,6 @@
     "tabs": {
       "general": "Allgemein",
       "appearance": "Darstellung",
-      "customization": "Anpassung",
-      "audio": "Audio",
       "storage": "Cache & Speicher",
       "system": "System",
       "account": "Konto",
@@ -556,44 +566,6 @@
         "description": "Hält das Overlay über anderen Fenstern."
       }
     },
-    "customization": {
-      "description": "Fensterhintergrund, Transparenz und Unschärfe-Effekte für Bereiche.",
-      "apply_to_overlay": "Auf Overlay-Mini-Player anwenden",
-      "apply_to_overlay_desc": "Wendet den eigenen Hintergrund und den Glas-Stil auf den schwebenden Mini-Player an.",
-      "dark_theme_only": "Die Anpassung ist nur im dunklen Design verfügbar",
-      "wallpaper_title": "Fensterhintergrund",
-      "wallpaper_description": "Lege ein eigenes Bild oder ein animiertes GIF als Hintergrund des gesamten Fensters fest.",
-      "upload_title": "Bild oder animiertes GIF auswählen",
-      "upload_hint": "PNG, JPEG, GIF, WebP (bis zu 30 MB)",
-      "change_button": "Ändern",
-      "remove_button": "Entfernen",
-      "wallpaper_blur": "Hintergrund-Unschärfe",
-      "wallpaper_dim": "Hintergrund abdunkeln",
-      "blocks_title": "Glas-Effekte für einzelne Bereiche",
-      "blocks_description": "Passe Transparenz, Hintergrundunschärfe und Abdunklung für jeden Bereich der Oberfläche an.",
-      "block_sidebar": "Seitenleiste",
-      "block_content": "Inhaltsbereich",
-      "block_miniplayer": "Mini-Player",
-      "opacity": "Deckkraft",
-      "opacity_desc": "Deckkraft des Hintergrunds (mind. 25 %)",
-      "blur": "Hintergrundunschärfe",
-      "blur_desc": "Intensität des Milchglas-Effekts",
-      "dim": "Abdunkeln",
-      "dim_desc": "Dunkle Überlagerung für bessere Lesbarkeit",
-      "apply_all": "Auf alle",
-      "apply_all_title": "Einstellungen auf alle Bereiche anwenden",
-      "applied_to_all": "Einstellungen auf alle Bereiche angewendet",
-      "reset_block": "Zurücksetzen",
-      "block_reset": "Bereichseinstellungen zurückgesetzt",
-      "reset_all": "Gesamte Anpassung zurücksetzen",
-      "reset_all_desc": "Stellt das Standarddesign wieder her und entfernt Hintergrundbild und Glas-Effekte.",
-      "all_reset": "Gesamte Anpassung zurückgesetzt",
-      "applied": "Hintergrund angewendet",
-      "removed": "Hintergrund entfernt",
-      "invalid_file_type": "Bitte wähle ein Bild oder eine GIF-Datei aus",
-      "file_too_large": "Die Dateigröße muss unter 30 MB liegen",
-      "read_error": "Bilddatei konnte nicht gelesen werden"
-    },
     "audio_data": {
       "description": "Streaming-Qualität, Offline-Cache und Verbindungsdiagnose."
     },
@@ -614,6 +586,10 @@
     "language": {
       "label": "Sprache",
       "description": "Wähle die Sprache der Oberfläche"
+    },
+    "remember_window_bounds": {
+      "title": "Fenstergröße und -position merken",
+      "description": "Das Fenster in derselben Größe und an derselben Stelle wieder öffnen."
     },
     "autoplay_similar": {
       "title": "Ähnliche Titel automatisch abspielen",
@@ -690,13 +666,16 @@
         "covers": "Cover-Artwork",
         "audio": "Audiodateien",
         "lyrics": "Songtexte",
-        "metadata": "Katalog & Suche"
-      }
+        "metadata": "Katalog & Suche",
+        "local": "Lokale Musik"
+      },
+      "local_confirm_title": "Auch deine lokale Musik löschen?",
+      "local_confirm_desc": "Lokale Musik ist deine importierte Bibliothek, kein Cache. {tracks} ({size}) werden samt Covern aus Liner gelöscht. Deine Originaldateien bleiben, wo sie sind.",
+      "local_confirm_button": "Lokale Musik löschen"
     },
     "theme": {
       "title": "Design",
       "description": "Wähle das allgemeine Erscheinungsbild der App.",
-      "disabled_for_glass": "Das helle Design ist deaktiviert, wenn ein eigener Hintergrund mit Glassmorphismus verwendet wird.",
       "light": "Hell",
       "dark": "Dunkel",
       "system": "System"
@@ -719,8 +698,6 @@
       "vhs": "Chrome"
     },
     "audio": {
-      "title": "Streaming-Qualität",
-      "description": "Wähle die Standard-Audioqualität für die Wiedergabe.",
       "pause_on_device_change": {
         "title": "Bei Gerätewechsel pausieren",
         "description": "Pausiert die Wiedergabe automatisch, wenn sich das Audioausgabegerät ändert."
@@ -728,11 +705,7 @@
       "download_current_song": {
         "title": "Aktuellen Titel herunterladen",
         "description": "Lädt den aktuell wiedergegebenen Titel als MP3-Datei herunter."
-      },
-      "low": "Niedrige Qualität (Datensparmodus)",
-      "standard": "Standardqualität (Opus 64kbps / MP3 128kbps)",
-      "high": "Hohe Qualität (AAC 256kbps)",
-      "lossless": "Verlustfrei (FLAC/ALAC) – derzeit nicht verfügbar"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -793,7 +766,7 @@
     "about": {
       "liner": "Liner",
       "telegram": "Kanal",
-      "support": "Support",
+      "discord": "Discord",
       "github": "GitHub",
       "website": "Website",
       "tagline": "Moderner Desktop-Musikplayer mit silbensynchronen Songtexten",
@@ -827,15 +800,6 @@
       "license_notice": "Verbreitet unter der Liner Source-Available & Non-Commercial License."
     },
     "connection": {
-      "title": "Verbindung",
-      "description": "Führe alle Verbindungsprüfungen aus und speichere den Offline-Bericht.",
-      "checks_title": "Offline-Bericht",
-      "button": "Prüfungen ausführen und speichern",
-      "checking": "Wird geprüft…",
-      "saved": "Bericht gespeichert, hänge ihn an deine Support-Nachricht an.",
-      "failed": "Bericht konnte nicht gespeichert werden.",
-      "never_run": "Die Prüfungen wurden noch nicht ausgeführt.",
-      "last_run": "{ok}/{total} Prüfungen ok · {time}",
       "open_folder": "Speicherort öffnen"
     }
   },
@@ -960,12 +924,7 @@
     "check_trace": "Routenverfolgung",
     "check_platform": "Plattform",
     "check_main": "Desktop-Prüfungen",
-    "copy_dump": "Bericht kopieren",
-    "dump_copied": "Bericht kopiert, füge ihn in deine Support-Nachricht ein.",
-    "dump_copy_failed": "Zugriff auf die Zwischenablage nicht möglich.",
-    "download_dump": "Bericht speichern",
-    "support": "Support kontaktieren",
-    "support_hint": "Hänge die gespeicherte Berichtsdatei an, damit der Support ein vollständiges Bild hat."
+    "support": "Support kontaktieren"
   },
   "updater": {
     "modal_title": "Neues Update verfügbar",
@@ -982,9 +941,37 @@
   "track_search": {
     "placeholder_playlist": "In Playlist suchen",
     "placeholder_album": "Im Album suchen",
-    "button": "Titel suchen",
     "count": "{count} von {total}",
     "no_results": "Keine Titel für „{query}“",
     "clear": "Suche löschen"
+  },
+  "track_sort": {
+    "label": "Sortieren",
+    "default": "Standard",
+    "added": "Nach Hinzufügedatum",
+    "title": "Nach Titel (A–Z)",
+    "duration": "Nach Dauer",
+    "popularity": "Nach Beliebtheit"
+  },
+  "track_info": {
+    "menu": "Song-Infos",
+    "title": "Song-Infos",
+    "genre": "Genre",
+    "album": "Album",
+    "released": "Erschienen",
+    "duration": "Dauer",
+    "track_number": "Titelnummer",
+    "track_of": "{n} von {total}",
+    "disc_of": "CD {n} von {total}",
+    "explicit": "Explizit",
+    "yes": "Ja",
+    "no": "Nein",
+    "your_plays": "Deine Wiedergaben",
+    "listening_time": "Deine Hörzeit",
+    "first_listened": "Zuerst gehört",
+    "last_listened": "Zuletzt gehört",
+    "never": "Noch nicht",
+    "unknown": "Unbekannt",
+    "source_note": "Genre und Albumdetails stammen aus der iTunes-Suche von Apple."
   }
 }

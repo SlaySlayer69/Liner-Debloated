@@ -8,7 +8,12 @@ import { useTranslation } from "@/languages";
 import { PopularItemCard } from "@/features/home/ui/PopularTracksSection";
 import type { PopularItem } from "@/features/home/hooks/usePopularTracks";
 import { useListeningStats } from "../hooks/useListeningStats";
-import { STATS_PERIODS, type BucketUnit, type PeriodRange, type StatsPeriod } from "../lib/periods";
+import {
+  STATS_PERIODS,
+  type BucketUnit,
+  type PeriodRange,
+  type StatsPeriod,
+} from "../lib/periods";
 import type { TopArtist } from "../lib/aggregate";
 
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
@@ -20,7 +25,8 @@ function formatDuration(ms: number, t: TFn): string {
   const totalMinutes = Math.floor(ms / 60_000);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  if (hours > 0) return `${hours} ${t("collection.hr")} ${minutes} ${t("collection.min")}`;
+  if (hours > 0)
+    return `${hours} ${t("collection.hr")} ${minutes} ${t("collection.min")}`;
   if (totalMinutes > 0) return `${minutes} ${t("collection.min")}`;
   return `${Math.round(ms / 1000)} ${t("collection.sec")}`;
 }
@@ -53,12 +59,17 @@ function periodLabel(
         month: "short",
         year: last.getFullYear() === thisYear ? undefined : "numeric",
       });
-      return fmt.formatRange ? fmt.formatRange(start, last) : `${fmt.format(start)} – ${fmt.format(last)}`;
+      return fmt.formatRange
+        ? fmt.formatRange(start, last)
+        : `${fmt.format(start)} – ${fmt.format(last)}`;
     }
     case "month":
       if (offset === 0) return t("home.stats.this_month");
       if (offset === 1) return t("home.stats.last_month");
-      return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(start);
+      return new Intl.DateTimeFormat(locale, {
+        month: "long",
+        year: "numeric",
+      }).format(start);
     case "year":
       if (offset === 0) return t("home.stats.this_year");
       if (offset === 1) return t("home.stats.last_year");
@@ -72,17 +83,32 @@ function bucketLabel(unit: BucketUnit, start: number, locale: string): string {
   const d = new Date(start);
   switch (unit) {
     case "hour":
-      return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(d);
+      return new Intl.DateTimeFormat(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(d);
     case "day":
-      return new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short" }).format(d);
+      return new Intl.DateTimeFormat(locale, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      }).format(d);
     case "month":
-      return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(d);
+      return new Intl.DateTimeFormat(locale, {
+        month: "long",
+        year: "numeric",
+      }).format(d);
     case "year":
       return String(d.getFullYear());
   }
 }
 
-function bucketTick(period: StatsPeriod, unit: BucketUnit, start: number, locale: string): string {
+function bucketTick(
+  period: StatsPeriod,
+  unit: BucketUnit,
+  start: number,
+  locale: string,
+): string {
   const d = new Date(start);
   switch (unit) {
     case "hour":
@@ -101,7 +127,9 @@ function bucketTick(period: StatsPeriod, unit: BucketUnit, start: number, locale
 // artist pictures are fetched once per session for the top few artists only
 const artistImages = new Map<string, Promise<string | undefined>>();
 
-function useArtistImages(artists: readonly TopArtist[]): Record<string, string> {
+function useArtistImages(
+  artists: readonly TopArtist[],
+): Record<string, string> {
   const [images, setImages] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
@@ -115,7 +143,9 @@ function useArtistImages(artists: readonly TopArtist[]): Record<string, string> 
       const key = artist.key;
       void pending.then((url) => {
         if (!active || !url) return;
-        setImages((prev) => (prev[key] === url ? prev : { ...prev, [key]: url }));
+        setImages((prev) =>
+          prev[key] === url ? prev : { ...prev, [key]: url },
+        );
       });
     }
     return () => {
@@ -136,11 +166,16 @@ function SubHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTop?: string }) {
+function StatisticsSection({
+  headingMarginTop = "mt-[22px]",
+}: {
+  headingMarginTop?: string;
+}) {
   const { t, locale } = useTranslation();
   const [period, setPeriod] = useState<StatsPeriod>("week");
   const [offset, setOffset] = useState(0);
-  const { isLoading, range, unit, buckets, summary, genres, hasOlder } = useListeningStats(period, offset);
+  const { isLoading, range, unit, buckets, summary, genres, hasOlder } =
+    useListeningStats(period, offset);
 
   const artistImages = useArtistImages(summary?.topArtists ?? []);
 
@@ -172,7 +207,10 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
     [summary, artistImages],
   );
 
-  const maxBucket = useMemo(() => Math.max(0, ...(summary?.bucketMs ?? [0])), [summary]);
+  const maxBucket = useMemo(
+    () => Math.max(0, ...(summary?.bucketMs ?? [0])),
+    [summary],
+  );
   const label = periodLabel(period, offset, range, locale, t);
   const hasData = Boolean(summary && summary.totalMs > 0);
 
@@ -180,15 +218,33 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
     `${t("home.stats.plays_count", { count: plays })} · ${formatDuration(ms, t)}`;
 
   const tiles = [
-    { id: "time", label: t("home.stats.listening_time"), value: formatDuration(summary?.totalMs ?? 0, t) },
-    { id: "plays", label: t("home.stats.plays"), value: String(summary?.playCount ?? 0) },
-    { id: "tracks", label: t("home.stats.tracks"), value: String(summary?.uniqueTracks ?? 0) },
-    { id: "artists", label: t("home.stats.artists"), value: String(summary?.uniqueArtists ?? 0) },
+    {
+      id: "time",
+      label: t("home.stats.listening_time"),
+      value: formatDuration(summary?.totalMs ?? 0, t),
+    },
+    {
+      id: "plays",
+      label: t("home.stats.plays"),
+      value: String(summary?.playCount ?? 0),
+    },
+    {
+      id: "tracks",
+      label: t("home.stats.tracks"),
+      value: String(summary?.uniqueTracks ?? 0),
+    },
+    {
+      id: "artists",
+      label: t("home.stats.artists"),
+      value: String(summary?.uniqueArtists ?? 0),
+    },
   ];
 
   return (
     <section className="flex flex-col" aria-label={t("home.stats.title")}>
-      <div className={`${headingMarginTop} px-8 flex flex-wrap items-center justify-between gap-3`}>
+      <div
+        className={`${headingMarginTop} px-8 flex flex-wrap items-center justify-between gap-3`}
+      >
         <div className="flex items-center gap-2.5">
           <div className="flex items-center shrink-0">
             <ChartBarFill className="w-5 h-5 text-violet-400" />
@@ -219,7 +275,9 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
                   setOffset(0);
                 }}
                 className={`relative rounded-lg px-[12px] py-[6px] text-[12.5px] leading-none border-0 bg-transparent cursor-pointer transition-colors duration-150 active:scale-[0.97] ${
-                  active ? "text-text-primary" : "text-text-secondary hover:text-text-primary"
+                  active
+                    ? "text-text-primary"
+                    : "text-text-secondary hover:text-text-primary"
                 }`}
                 style={{ ...font, fontWeight: 500 }}
               >
@@ -227,10 +285,17 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
                   <motion.div
                     layoutId="statsPeriodTab"
                     className="absolute inset-0 rounded-lg bg-bg-primary shadow-sm"
-                    transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.7 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 500,
+                      damping: 35,
+                      mass: 0.7,
+                    }}
                   />
                 )}
-                <span className="relative z-10">{t(`home.stats.period_${value}`)}</span>
+                <span className="relative z-10">
+                  {t(`home.stats.period_${value}`)}
+                </span>
               </button>
             );
           })}
@@ -271,7 +336,10 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
       <div className="px-8 mt-[10px] grid grid-cols-2 lg:grid-cols-4 gap-2">
         {tiles.map((tile) => (
           <div key={tile.id} className="py-1 flex flex-col gap-1 min-w-0">
-            <span className="text-[12px] text-text-tertiary truncate" style={font}>
+            <span
+              className="text-[12px] text-text-tertiary truncate"
+              style={font}
+            >
               {tile.label}
             </span>
             <span
@@ -287,7 +355,10 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
       </div>
 
       {!isLoading && !hasData ? (
-        <p className="px-8 mt-[14px] mb-0 text-[13px] text-text-tertiary" style={font}>
+        <p
+          className="px-8 mt-[14px] mb-0 text-[13px] text-text-tertiary"
+          style={font}
+        >
           {t("home.stats.empty")}
         </p>
       ) : (
@@ -303,7 +374,10 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
             >
               {buckets.map((bucket, i) => {
                 const ms = summary?.bucketMs[i] ?? 0;
-                const height = maxBucket > 0 ? Math.max(ms > 0 ? 4 : 0, (ms / maxBucket) * 100) : 0;
+                const height =
+                  maxBucket > 0
+                    ? Math.max(ms > 0 ? 4 : 0, (ms / maxBucket) * 100)
+                    : 0;
                 return (
                   <Tooltip
                     key={bucket.start}
@@ -325,13 +399,16 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
             <div className="mt-1 flex gap-[2px]" aria-hidden="true">
               {buckets.map((bucket, i) => {
                 // label every bar while they fit, otherwise every few
-                const step = buckets.length > 16 ? Math.ceil(buckets.length / 8) : 1;
+                const step =
+                  buckets.length > 16 ? Math.ceil(buckets.length / 8) : 1;
                 return (
                   <span
                     key={bucket.start}
                     className="flex-1 min-w-0 text-center text-[10px] text-text-tertiary tabular-nums truncate"
                   >
-                    {i % step === 0 ? bucketTick(period, unit, bucket.start, locale) : ""}
+                    {i % step === 0
+                      ? bucketTick(period, unit, bucket.start, locale)
+                      : ""}
                   </span>
                 );
               })}
@@ -386,23 +463,32 @@ function StatisticsSection({ headingMarginTop = "mt-[22px]" }: { headingMarginTo
             ) : (
               <ol className="m-0 p-0 list-none grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-2">
                 {genres.map((genre, index) => (
-                  <li key={genre.genre} className="flex items-center gap-3 min-w-0">
+                  <li
+                    key={genre.genre}
+                    className="flex items-center gap-3 min-w-0"
+                  >
                     <span className="w-[18px] shrink-0 text-[12px] text-text-tertiary tabular-nums text-right">
                       {index + 1}
                     </span>
                     <div className="flex-1 min-w-0 flex flex-col gap-1">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-[13.5px] font-medium text-text-primary" style={font}>
+                        <span
+                          className="truncate text-[13.5px] font-medium text-text-primary"
+                          style={font}
+                        >
                           {genre.genre}
                         </span>
                         <span className="shrink-0 text-[12px] text-text-tertiary tabular-nums">
-                          {Math.round(genre.share * 100)}% · {formatDuration(genre.listenedMs, t)}
+                          {Math.round(genre.share * 100)}% ·{" "}
+                          {formatDuration(genre.listenedMs, t)}
                         </span>
                       </div>
                       <div className="h-[6px] w-full">
                         <div
                           className="h-full rounded-full bg-text-primary"
-                          style={{ width: `${Math.max(2, genre.share * 100)}%` }}
+                          style={{
+                            width: `${Math.max(2, genre.share * 100)}%`,
+                          }}
                         />
                       </div>
                     </div>

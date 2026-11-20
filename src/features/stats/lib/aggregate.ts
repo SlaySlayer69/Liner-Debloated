@@ -27,7 +27,9 @@ export interface PlayRecord {
 // a listen counts as a play after 30s or when the track ran to its end
 export const PLAY_THRESHOLD_MS = 30_000;
 
-export function countsAsPlay(record: Pick<PlayRecord, "playedMs" | "completed">): boolean {
+export function countsAsPlay(
+  record: Pick<PlayRecord, "playedMs" | "completed">,
+): boolean {
   return record.completed || record.playedMs >= PLAY_THRESHOLD_MS;
 }
 
@@ -61,7 +63,9 @@ function isUsableArtistId(id: string | undefined): id is string {
 }
 
 export function artistKey(artist: PlayRecordArtist): string {
-  return isUsableArtistId(artist.id) ? `id:${artist.id}` : `name:${artist.name.trim().toLowerCase()}`;
+  return isUsableArtistId(artist.id)
+    ? `id:${artist.id}`
+    : `name:${artist.name.trim().toLowerCase()}`;
 }
 
 function toTrack(record: PlayRecord): Track {
@@ -80,11 +84,16 @@ function toTrack(record: PlayRecord): Track {
     durationMs: record.durationMs,
     playCount: 0,
     explicit: record.explicit,
-    album: record.albumId ? { id: record.albumId, title: record.albumTitle ?? "" } : undefined,
+    album: record.albumId
+      ? { id: record.albumId, title: record.albumTitle ?? "" }
+      : undefined,
   };
 }
 
-function rank<T extends { plays: number; listenedMs: number }>(items: Iterable<T>, limit: number): T[] {
+function rank<T extends { plays: number; listenedMs: number }>(
+  items: Iterable<T>,
+  limit: number,
+): T[] {
   return Array.from(items)
     .sort((a, b) => b.listenedMs - a.listenedMs || b.plays - a.plays)
     .slice(0, limit);
@@ -99,7 +108,7 @@ export function summarize(
   let playCount = 0;
   const tracks = new Map<string, TopTrack>();
   const artists = new Map<string, TopArtist>();
-  const bucketMs = new Array<number>(buckets.length).fill(0);
+  const bucketMs = Array.from({ length: buckets.length }, () => 0);
 
   for (const record of records) {
     const played = Math.max(0, record.playedMs);
@@ -112,13 +121,19 @@ export function summarize(
       track.listenedMs += played;
       if (isPlay) track.plays++;
       // newer listens carry the freshest metadata
-      if (record.coverUrl && !track.track.coverUrl) track.track.coverUrl = record.coverUrl;
+      if (record.coverUrl && !track.track.coverUrl)
+        track.track.coverUrl = record.coverUrl;
     } else {
-      tracks.set(record.trackId, { track: toTrack(record), plays: isPlay ? 1 : 0, listenedMs: played });
+      tracks.set(record.trackId, {
+        track: toTrack(record),
+        plays: isPlay ? 1 : 0,
+        listenedMs: played,
+      });
     }
 
     // time is split between featured artists, plays count for each of them
-    const credited = record.artists.length > 0 ? record.artists : [{ name: "" }];
+    const credited =
+      record.artists.length > 0 ? record.artists : [{ name: "" }];
     const share = played / credited.length;
     for (const artist of credited) {
       if (!artist.name.trim()) continue;
@@ -127,7 +142,8 @@ export function summarize(
       if (entry) {
         entry.listenedMs += share;
         if (isPlay) entry.plays++;
-        if (!entry.coverUrl && record.coverUrl) entry.coverUrl = record.coverUrl;
+        if (!entry.coverUrl && record.coverUrl)
+          entry.coverUrl = record.coverUrl;
       } else {
         artists.set(key, {
           key,
@@ -191,7 +207,11 @@ export function summarizeGenres(
     known += artist.listenedMs;
   }
   if (known <= 0) return [];
-  return Array.from(byGenre, ([genre, listenedMs]) => ({ genre, listenedMs, share: listenedMs / known }))
+  return Array.from(byGenre, ([genre, listenedMs]) => ({
+    genre,
+    listenedMs,
+    share: listenedMs / known,
+  }))
     .sort((a, b) => b.listenedMs - a.listenedMs)
     .slice(0, limit);
 }
@@ -204,14 +224,24 @@ export interface TrackListening {
 }
 
 /** how one song was listened to: plays, total time, first and last listen */
-export function summarizeTrackListens(records: readonly PlayRecord[], trackId: string): TrackListening {
-  const result: TrackListening = { plays: 0, listenedMs: 0, firstListenedAt: null, lastListenedAt: null };
+export function summarizeTrackListens(
+  records: readonly PlayRecord[],
+  trackId: string,
+): TrackListening {
+  const result: TrackListening = {
+    plays: 0,
+    listenedMs: 0,
+    firstListenedAt: null,
+    lastListenedAt: null,
+  };
   for (const record of records) {
     if (record.trackId !== trackId) continue;
     result.listenedMs += Math.max(0, record.playedMs);
     if (countsAsPlay(record)) result.plays++;
-    if (result.firstListenedAt === null || record.ts < result.firstListenedAt) result.firstListenedAt = record.ts;
-    if (result.lastListenedAt === null || record.ts > result.lastListenedAt) result.lastListenedAt = record.ts;
+    if (result.firstListenedAt === null || record.ts < result.firstListenedAt)
+      result.firstListenedAt = record.ts;
+    if (result.lastListenedAt === null || record.ts > result.lastListenedAt)
+      result.lastListenedAt = record.ts;
   }
   return result;
 }

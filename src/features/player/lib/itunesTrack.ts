@@ -50,10 +50,13 @@ export function pickItunesSong(
 ): ItunesSongResult | null {
   const wantTitle = normalizeTitle(title);
   const wantArtist = firstArtist(artists);
-  const titleMatches = results.filter((r) => r.trackName && normalizeTitle(r.trackName) === wantTitle);
+  const titleMatches = results.filter(
+    (r) => r.trackName && normalizeTitle(r.trackName) === wantTitle,
+  );
   return (
-    titleMatches.find((r) => r.artistName && normalizeTitle(r.artistName).includes(wantArtist)) ??
-    (wantArtist ? null : titleMatches[0] ?? null)
+    titleMatches.find(
+      (r) => r.artistName && normalizeTitle(r.artistName).includes(wantArtist),
+    ) ?? (wantArtist ? null : (titleMatches[0] ?? null))
   );
 }
 
@@ -70,13 +73,19 @@ function toInfo(result: ItunesSongResult): ItunesTrackInfo {
   };
 }
 
-async function fetchInfo(title: string, artists: string): Promise<ItunesTrackInfo | null> {
+async function fetchInfo(
+  title: string,
+  artists: string,
+): Promise<ItunesTrackInfo | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LOOKUP_TIMEOUT_MS);
   try {
     const term = `${artists.split(",")[0] ?? ""} ${title}`.trim();
     const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=10`;
-    const res = await fetch(url, { signal: controller.signal, credentials: "omit" });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      credentials: "omit",
+    });
     if (!res.ok) return null;
     const body = (await res.json()) as { results?: ItunesSongResult[] };
     const match = pickItunesSong(body.results ?? [], title, artists);
@@ -86,7 +95,10 @@ async function fetchInfo(title: string, artists: string): Promise<ItunesTrackInf
   }
 }
 
-export function lookupItunesTrack(title: string, artists: string): Promise<ItunesTrackInfo | null> {
+export function lookupItunesTrack(
+  title: string,
+  artists: string,
+): Promise<ItunesTrackInfo | null> {
   const key = `${normalizeTitle(artists)}|${normalizeTitle(title)}`;
   let pending = cache.get(key);
   if (!pending) {

@@ -35,7 +35,10 @@ function normalize(name: string): string {
 }
 
 /** cached genre, "" when known to be unknown, undefined when never looked up (or due for a retry) */
-export function getCachedGenre(artistName: string, now = Date.now()): string | undefined {
+export function getCachedGenre(
+  artistName: string,
+  now = Date.now(),
+): string | undefined {
   const hit = load()[normalize(artistName)];
   if (!hit) return undefined;
   if (!hit.g && now - hit.t > MISS_RETRY_MS) return undefined;
@@ -47,9 +50,14 @@ interface ItunesArtistResult {
   primaryGenreName?: string;
 }
 
-export function pickGenre(artistName: string, results: readonly ItunesArtistResult[]): string {
+export function pickGenre(
+  artistName: string,
+  results: readonly ItunesArtistResult[],
+): string {
   const wanted = normalize(artistName);
-  const exact = results.find((r) => r.artistName && normalize(r.artistName) === wanted);
+  const exact = results.find(
+    (r) => r.artistName && normalize(r.artistName) === wanted,
+  );
   return (exact ?? results[0])?.primaryGenreName?.trim() ?? "";
 }
 
@@ -58,7 +66,10 @@ async function fetchGenre(artistName: string): Promise<string | null> {
   const timer = setTimeout(() => controller.abort(), LOOKUP_TIMEOUT_MS);
   try {
     const url = `https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&entity=musicArtist&limit=3`;
-    const res = await fetch(url, { signal: controller.signal, credentials: "omit" });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      credentials: "omit",
+    });
     if (!res.ok) return null;
     const body = (await res.json()) as { results?: ItunesArtistResult[] };
     return pickGenre(artistName, body.results ?? []);
@@ -94,13 +105,21 @@ export function lookupGenre(artistName: string): Promise<string | null> {
 }
 
 /** looks up a few artists at a time so the itunes rate limit is never hit in a burst */
-export async function lookupGenres(artistNames: readonly string[], concurrency = 3): Promise<void> {
-  const queue = artistNames.filter((name) => getCachedGenre(name) === undefined);
-  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-    while (queue.length > 0) {
-      const next = queue.shift();
-      if (next) await lookupGenre(next);
-    }
-  });
+export async function lookupGenres(
+  artistNames: readonly string[],
+  concurrency = 3,
+): Promise<void> {
+  const queue = artistNames.filter(
+    (name) => getCachedGenre(name) === undefined,
+  );
+  const workers = Array.from(
+    { length: Math.min(concurrency, queue.length) },
+    async () => {
+      while (queue.length > 0) {
+        const next = queue.shift();
+        if (next) await lookupGenre(next);
+      }
+    },
+  );
   await Promise.all(workers);
 }

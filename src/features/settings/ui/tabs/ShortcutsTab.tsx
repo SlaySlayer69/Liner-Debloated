@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -7,7 +7,6 @@ import {
   VolumeLoud,
   VolumeSmall,
   VolumeCross,
-  MusicNote,
   Widget5,
   MaximizeSquare,
 } from "@solar-icons/react";
@@ -20,34 +19,88 @@ import {
   FastForwardLine,
   FastRewindLine,
   ExternalLinkLine,
-  GlobeLine,
 } from "@mingcute/react";
 import { useTranslation } from "@/languages";
-import { Dialog, Button, Tooltip, useToast } from "@/shared/ui";
+import { ConfirmPill, useToast } from "@/shared/ui";
 import {
   useShortcutsStore,
   normalizeShortcutToEnglish,
   DEFAULT_SHORTCUTS,
+  OPTIONAL_GLOBAL_ACTIONS,
+  type OptionalGlobalAction,
   type GlobalShortcutsSettings,
   type MainAppShortcutsSettings,
   type MiniplayerShortcutsSettings,
-  type MainAppShortcutAction,
-  ResetIcon,
+  type GlobalShortcutState,
+  type VolumeStep,
+  VOLUME_STEP_OPTIONS,
+  formatAcceleratorForDisplay,
+  subscribeToGlobalShortcutStatus,
 } from "@/features/shortcuts";
 import { ShortcutRecorder } from "@/features/shortcuts/ui/ShortcutRecorder";
+import { SegmentedControl, SettingRow, SettingSection } from "../controls";
+import { useElementSize } from "@/shared/hooks/useElementSize";
 
-const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
+type VolumeStepOption = `${number}`;
+
+function toStepOption(step: VolumeStep): VolumeStepOption {
+  return String(Math.round(step * 100)) as VolumeStepOption;
+}
+
+function fromStepOption(option: VolumeStepOption): VolumeStep {
+  const step = Number(option) / 100;
+  return (
+    VOLUME_STEP_OPTIONS.find((candidate) => candidate === step) ??
+    VOLUME_STEP_OPTIONS[2]
+  );
+}
 
 type ScopeFilter = "mainApp" | "miniplayer" | "global";
 
-export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: string }) {
+const LIST_RESIZE_TRANSITION = "height 260ms cubic-bezier(0.32, 0.72, 0, 1)";
+
+const OPTIONAL_GLOBAL_ICONS: Record<
+  OptionalGlobalAction,
+  React.ComponentType<any>
+> = {
+  playPause: Play,
+  nextTrack: SkipNext,
+  prevTrack: SkipPrevious,
+  seekForward: FastForwardLine,
+  seekBackward: FastRewindLine,
+  volumeUp: VolumeLoud,
+  volumeDown: VolumeSmall,
+  toggleMute: VolumeCross,
+  showMainWindow: ExternalLinkLine,
+};
+
+export function ShortcutsTab({
+  searchQuery: externalQuery,
+}: {
+  searchQuery?: string;
+}) {
   const { t, locale } = useTranslation();
   const { toast } = useToast();
   const isRu = locale === "ru";
   const [activeScope, setActiveScope] = useState<ScopeFilter>("mainApp");
   const [localSearchQuery, setLocalSearchQuery] = useState("");
   const [recordingId, setRecordingId] = useState<string | null>(null);
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const listSize = useElementSize<HTMLDivElement>();
+  const listHeight = listSize.size?.height;
+  const [listResizing, setListResizing] = useState(false);
+  const previousListHeight = useRef(listHeight);
+
+  useEffect(() => {
+    const previous = previousListHeight.current;
+    previousListHeight.current = listHeight;
+    if (
+      previous !== undefined &&
+      listHeight !== undefined &&
+      previous !== listHeight
+    ) {
+      setListResizing(true);
+    }
+  }, [listHeight]);
 
   useEffect(() => {
     if (!recordingId) return;
@@ -65,192 +118,339 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
   const mainApp = useShortcutsStore((state) => state.mainApp);
   const miniplayer = useShortcutsStore((state) => state.miniplayer);
 
-  const setGlobalShortcut = useShortcutsStore((state) => state.setGlobalShortcut);
-  const setMainAppShortcut = useShortcutsStore((state) => state.setMainAppShortcut);
-  const setMiniplayerShortcut = useShortcutsStore((state) => state.setMiniplayerShortcut);
+  const setMainAppShortcut = useShortcutsStore(
+    (state) => state.setMainAppShortcut,
+  );
+  const setMiniplayerShortcut = useShortcutsStore(
+    (state) => state.setMiniplayerShortcut,
+  );
   const resetShortcut = useShortcutsStore((state) => state.resetShortcut);
   const resetAll = useShortcutsStore((state) => state.resetAll);
-  const mainAppGlobal = useShortcutsStore((state) => state.mainAppGlobal);
-  const mainAppGlobalStatus = useShortcutsStore((state) => state.mainAppGlobalStatus);
-  const setMainAppGlobal = useShortcutsStore((state) => state.setMainAppGlobal);
-  const canUseGlobal = typeof window !== "undefined" && Boolean(window.linerElectron?.setAppGlobalShortcuts);
-
-  const handleToggleGlobal = useCallback(
-    (action: MainAppShortcutAction) => {
-      const enable = !mainAppGlobal[action];
-      if (!setMainAppGlobal(action, enable)) {
-        toast(
-          t("settings.shortcuts.modifier_required") || "Global shortcuts require Ctrl, Alt, or Shift",
-          "error",
-        );
-      }
-    },
-    [mainAppGlobal, setMainAppGlobal, toast, t],
+  const commitGlobalShortcut = useShortcutsStore(
+    (state) => state.commitGlobalShortcut,
   );
+  const globalStatus = useShortcutsStore((state) => state.globalStatus);
+  const rejectedGlobal = useShortcutsStore((state) => state.rejectedGlobal);
+  const clearRejectedGlobal = useShortcutsStore(
+    (state) => state.clearRejectedGlobal,
+  );
+  const volumeStep = useShortcutsStore((state) => state.volumeStep);
+  const setVolumeStep = useShortcutsStore((state) => state.setVolumeStep);
+  const volumeHoldRepeats = useShortcutsStore(
+    (state) => state.volumeHoldRepeats,
+  );
+  const setVolumeHoldRepeats = useShortcutsStore(
+    (state) => state.setVolumeHoldRepeats,
+  );
+
+  useEffect(() => subscribeToGlobalShortcutStatus(), []);
+
+  useEffect(() => {
+    if (!rejectedGlobal) return;
+    const keys = formatAcceleratorForDisplay(rejectedGlobal.shortcut);
+    const message =
+      rejectedGlobal.reason === "taken"
+        ? t("settings.shortcuts.taken_not_saved", { shortcut: keys }) ||
+          `${keys} is taken by the system or another app. Pick another one.`
+        : t("settings.shortcuts.invalid_not_saved", { shortcut: keys }) ||
+          `${keys} can't be used as a global shortcut. Pick another one.`;
+    toast(message, "error");
+    clearRejectedGlobal();
+  }, [rejectedGlobal, clearRejectedGlobal, t, toast]);
 
   const handleConfirmResetAll = useCallback(() => {
     resetAll();
-    setIsResetModalOpen(false);
     toast(
       isRu ? "Все горячие клавиши сброшены" : "All shortcuts have been reset",
-      "info"
+      "info",
     );
   }, [resetAll, toast, isRu]);
 
   // Labels for Global Actions
-  const globalLabels: Record<keyof GlobalShortcutsSettings, { title: string; desc: string }> = {
-    toggleOverlay: {
-      title: t("settings.shortcuts.toggle_overlay") || "Toggle miniplayer overlay",
-      desc: t("settings.shortcuts.toggle_overlay_desc") || "Show or hide the floating desktop overlay from anywhere in the OS.",
-    },
-    quickLikeSong: {
-      title: t("settings.shortcuts.quick_like_song") || "Quick like current song",
-      desc: t("settings.shortcuts.quick_like_song_desc") || "Like or unlike current playing track system-wide without focusing the player.",
-    },
-  };
+  const globalLabels: Record<
+    keyof GlobalShortcutsSettings,
+    { title: string; desc: string }
+  > = useMemo(
+    () => ({
+      toggleOverlay: {
+        title:
+          t("settings.shortcuts.toggle_overlay") || "Toggle miniplayer overlay",
+        desc:
+          t("settings.shortcuts.toggle_overlay_desc") ||
+          "Show or hide the floating desktop overlay from anywhere in the OS.",
+      },
+      quickLikeSong: {
+        title:
+          t("settings.shortcuts.quick_like_song") || "Quick like current song",
+        desc:
+          t("settings.shortcuts.quick_like_song_desc") ||
+          "Like or unlike current playing track system-wide without focusing the player.",
+      },
+      playPause: {
+        title: t("settings.shortcuts.play_pause") || "Play / Pause",
+        desc:
+          t("settings.shortcuts.play_pause_desc") || "Toggle audio playback.",
+      },
+      nextTrack: {
+        title: t("settings.shortcuts.next_track") || "Next track",
+        desc:
+          t("settings.shortcuts.next_track_desc") ||
+          "Skip to the next song in the queue.",
+      },
+      prevTrack: {
+        title: t("settings.shortcuts.prev_track") || "Previous track",
+        desc:
+          t("settings.shortcuts.prev_track_desc") ||
+          "Return to previous track or track start.",
+      },
+      seekForward: {
+        title: t("settings.shortcuts.seek_forward") || "Seek forward (+5s)",
+        desc:
+          t("settings.shortcuts.seek_forward_desc") ||
+          "Fast forward playback position by 5 seconds.",
+      },
+      seekBackward: {
+        title: t("settings.shortcuts.seek_backward") || "Seek backward (-5s)",
+        desc:
+          t("settings.shortcuts.seek_backward_desc") ||
+          "Rewind playback position by 5 seconds.",
+      },
+      volumeUp: {
+        title: t("settings.shortcuts.volume_up") || "Volume up",
+        desc:
+          t("settings.shortcuts.volume_up_desc") ||
+          "Increase playback volume by 5%.",
+      },
+      volumeDown: {
+        title: t("settings.shortcuts.volume_down") || "Volume down",
+        desc:
+          t("settings.shortcuts.volume_down_desc") ||
+          "Decrease playback volume by 5%.",
+      },
+      toggleMute: {
+        title: t("settings.shortcuts.toggle_mute") || "Mute / Unmute",
+        desc:
+          t("settings.shortcuts.toggle_mute_desc") ||
+          "Toggle audio mute state.",
+      },
+      showMainWindow: {
+        title: t("settings.shortcuts.show_main_window") || "Show Liner",
+        desc:
+          t("settings.shortcuts.show_main_window_desc") ||
+          "Bring the main Liner window to the front.",
+      },
+    }),
+    [t],
+  );
 
   // Labels for Main App Actions
-  const mainAppLabels: Record<keyof MainAppShortcutsSettings, { title: string; desc: string }> = {
-    playPause: {
-      title: t("settings.shortcuts.play_pause") || "Play / Pause",
-      desc: t("settings.shortcuts.play_pause_desc") || "Toggle audio playback.",
-    },
-    nextTrack: {
-      title: t("settings.shortcuts.next_track") || "Next track",
-      desc: t("settings.shortcuts.next_track_desc") || "Skip to the next song in the queue.",
-    },
-    prevTrack: {
-      title: t("settings.shortcuts.prev_track") || "Previous track",
-      desc: t("settings.shortcuts.prev_track_desc") || "Return to previous track or track start.",
-    },
-    seekForward: {
-      title: t("settings.shortcuts.seek_forward") || "Seek forward (+5s)",
-      desc: t("settings.shortcuts.seek_forward_desc") || "Fast forward playback position by 5 seconds.",
-    },
-    seekBackward: {
-      title: t("settings.shortcuts.seek_backward") || "Seek backward (-5s)",
-      desc: t("settings.shortcuts.seek_backward_desc") || "Rewind playback position by 5 seconds.",
-    },
-    volumeUp: {
-      title: t("settings.shortcuts.volume_up") || "Volume up",
-      desc: t("settings.shortcuts.volume_up_desc") || "Increase playback volume by 5%.",
-    },
-    volumeDown: {
-      title: t("settings.shortcuts.volume_down") || "Volume down",
-      desc: t("settings.shortcuts.volume_down_desc") || "Decrease playback volume by 5%.",
-    },
-    toggleMute: {
-      title: t("settings.shortcuts.toggle_mute") || "Mute / Unmute",
-      desc: t("settings.shortcuts.toggle_mute_desc") || "Toggle audio mute state.",
-    },
-    search: {
-      title: t("settings.shortcuts.search") || "Search music",
-      desc: t("settings.shortcuts.search_desc") || "Quickly open the search dialog.",
-    },
-    toggleQueue: {
-      title: t("settings.shortcuts.toggle_queue") || "Queue",
-      desc: t("settings.shortcuts.toggle_queue_desc") || "Open or close the playback queue panel.",
-    },
-    toggleLyrics: {
-      title: t("settings.shortcuts.toggle_lyrics") || "Lyrics",
-      desc: t("settings.shortcuts.toggle_lyrics_desc") || "Open or close synchronized lyrics panel.",
-    },
-    toggleFullscreen: {
-      title: t("settings.shortcuts.toggle_fullscreen") || "Fullscreen / Player view",
-      desc: t("settings.shortcuts.toggle_fullscreen_desc") || "Toggle immersive fullscreen player view.",
-    },
-  };
+  const mainAppLabels: Record<
+    keyof MainAppShortcutsSettings,
+    { title: string; desc: string }
+  > = useMemo(
+    () => ({
+      playPause: {
+        title: t("settings.shortcuts.play_pause") || "Play / Pause",
+        desc:
+          t("settings.shortcuts.play_pause_desc") || "Toggle audio playback.",
+      },
+      nextTrack: {
+        title: t("settings.shortcuts.next_track") || "Next track",
+        desc:
+          t("settings.shortcuts.next_track_desc") ||
+          "Skip to the next song in the queue.",
+      },
+      prevTrack: {
+        title: t("settings.shortcuts.prev_track") || "Previous track",
+        desc:
+          t("settings.shortcuts.prev_track_desc") ||
+          "Return to previous track or track start.",
+      },
+      seekForward: {
+        title: t("settings.shortcuts.seek_forward") || "Seek forward (+5s)",
+        desc:
+          t("settings.shortcuts.seek_forward_desc") ||
+          "Fast forward playback position by 5 seconds.",
+      },
+      seekBackward: {
+        title: t("settings.shortcuts.seek_backward") || "Seek backward (-5s)",
+        desc:
+          t("settings.shortcuts.seek_backward_desc") ||
+          "Rewind playback position by 5 seconds.",
+      },
+      volumeUp: {
+        title: t("settings.shortcuts.volume_up") || "Volume up",
+        desc:
+          t("settings.shortcuts.volume_up_desc") ||
+          "Increase playback volume by 5%.",
+      },
+      volumeDown: {
+        title: t("settings.shortcuts.volume_down") || "Volume down",
+        desc:
+          t("settings.shortcuts.volume_down_desc") ||
+          "Decrease playback volume by 5%.",
+      },
+      toggleMute: {
+        title: t("settings.shortcuts.toggle_mute") || "Mute / Unmute",
+        desc:
+          t("settings.shortcuts.toggle_mute_desc") ||
+          "Toggle audio mute state.",
+      },
+      search: {
+        title: t("settings.shortcuts.search") || "Search music",
+        desc:
+          t("settings.shortcuts.search_desc") ||
+          "Quickly open the search dialog.",
+      },
+      toggleQueue: {
+        title: t("settings.shortcuts.toggle_queue") || "Queue",
+        desc:
+          t("settings.shortcuts.toggle_queue_desc") ||
+          "Open or close the playback queue panel.",
+      },
+      toggleFullscreen: {
+        title:
+          t("settings.shortcuts.toggle_fullscreen") ||
+          "Fullscreen / Player view",
+        desc:
+          t("settings.shortcuts.toggle_fullscreen_desc") ||
+          "Toggle immersive fullscreen player view.",
+      },
+    }),
+    [t],
+  );
 
   // Labels for Miniplayer Actions
-  const miniplayerLabels: Record<keyof MiniplayerShortcutsSettings, { title: string; desc: string }> = {
-    playPause: {
-      title: t("settings.shortcuts.play_pause") || "Play / Pause",
-      desc: t("settings.shortcuts.play_pause_desc") || "Toggle audio playback in miniplayer.",
-    },
-    nextTrack: {
-      title: t("settings.shortcuts.next_track") || "Next track",
-      desc: t("settings.shortcuts.next_track_desc") || "Skip to next song.",
-    },
-    prevTrack: {
-      title: t("settings.shortcuts.prev_track") || "Previous track",
-      desc: t("settings.shortcuts.prev_track_desc") || "Return to previous song.",
-    },
-    likeTrack: {
-      title: t("settings.shortcuts.like_track") || "Like / Unlike",
-      desc: t("settings.shortcuts.like_track_desc") || "Add or remove track from favorite tracks.",
-    },
-    seekForward: {
-      title: t("settings.shortcuts.seek_forward") || "Seek forward (+5s)",
-      desc: t("settings.shortcuts.seek_forward_desc") || "Fast forward by 5 seconds.",
-    },
-    seekBackward: {
-      title: t("settings.shortcuts.seek_backward") || "Seek backward (-5s)",
-      desc: t("settings.shortcuts.seek_backward_desc") || "Rewind by 5 seconds.",
-    },
-    volumeUp: {
-      title: t("settings.shortcuts.volume_up") || "Volume up",
-      desc: t("settings.shortcuts.volume_up_desc") || "Increase volume by 5%.",
-    },
-    volumeDown: {
-      title: t("settings.shortcuts.volume_down") || "Volume down",
-      desc: t("settings.shortcuts.volume_down_desc") || "Decrease volume by 5%.",
-    },
-    focusMainWindow: {
-      title: t("settings.shortcuts.focus_main_window") || "Switch to main window",
-      desc: t("settings.shortcuts.focus_main_window_desc") || "Focus and bring the main application window to front.",
-    },
-  };
+  const miniplayerLabels: Record<
+    keyof MiniplayerShortcutsSettings,
+    { title: string; desc: string }
+  > = useMemo(
+    () => ({
+      playPause: {
+        title: t("settings.shortcuts.play_pause") || "Play / Pause",
+        desc:
+          t("settings.shortcuts.play_pause_desc") ||
+          "Toggle audio playback in miniplayer.",
+      },
+      nextTrack: {
+        title: t("settings.shortcuts.next_track") || "Next track",
+        desc: t("settings.shortcuts.next_track_desc") || "Skip to next song.",
+      },
+      prevTrack: {
+        title: t("settings.shortcuts.prev_track") || "Previous track",
+        desc:
+          t("settings.shortcuts.prev_track_desc") || "Return to previous song.",
+      },
+      likeTrack: {
+        title: t("settings.shortcuts.like_track") || "Like / Unlike",
+        desc:
+          t("settings.shortcuts.like_track_desc") ||
+          "Add or remove track from favorite tracks.",
+      },
+      seekForward: {
+        title: t("settings.shortcuts.seek_forward") || "Seek forward (+5s)",
+        desc:
+          t("settings.shortcuts.seek_forward_desc") ||
+          "Fast forward by 5 seconds.",
+      },
+      seekBackward: {
+        title: t("settings.shortcuts.seek_backward") || "Seek backward (-5s)",
+        desc:
+          t("settings.shortcuts.seek_backward_desc") || "Rewind by 5 seconds.",
+      },
+      volumeUp: {
+        title: t("settings.shortcuts.volume_up") || "Volume up",
+        desc:
+          t("settings.shortcuts.volume_up_desc") || "Increase volume by 5%.",
+      },
+      volumeDown: {
+        title: t("settings.shortcuts.volume_down") || "Volume down",
+        desc:
+          t("settings.shortcuts.volume_down_desc") || "Decrease volume by 5%.",
+      },
+      focusMainWindow: {
+        title:
+          t("settings.shortcuts.focus_main_window") || "Switch to main window",
+        desc:
+          t("settings.shortcuts.focus_main_window_desc") ||
+          "Focus and bring the main application window to front.",
+      },
+    }),
+    [t],
+  );
 
   // Conflict validation callback factories
   const validateGlobalCandidate = useCallback(
     (currentKey: keyof GlobalShortcutsSettings) => (candidate: string) => {
       const norm = normalizeShortcutToEnglish(candidate).toLowerCase();
-      for (const [key, val] of Object.entries(global) as [keyof GlobalShortcutsSettings, string][]) {
-        if (key !== currentKey && normalizeShortcutToEnglish(val).toLowerCase() === norm) {
+      for (const [key, val] of Object.entries(global) as [
+        keyof GlobalShortcutsSettings,
+        string,
+      ][]) {
+        if (
+          key !== currentKey &&
+          normalizeShortcutToEnglish(val).toLowerCase() === norm
+        ) {
           return { conflictWith: globalLabels[key].title };
         }
       }
       return null;
     },
-    [global, globalLabels]
+    [global, globalLabels],
   );
 
   const validateMainAppCandidate = useCallback(
     (currentKey: keyof MainAppShortcutsSettings) => (candidate: string) => {
       const norm = normalizeShortcutToEnglish(candidate).toLowerCase();
-      for (const [key, val] of Object.entries(mainApp) as [keyof MainAppShortcutsSettings, string][]) {
-        if (key !== currentKey && normalizeShortcutToEnglish(val).toLowerCase() === norm) {
+      for (const [key, val] of Object.entries(mainApp) as [
+        keyof MainAppShortcutsSettings,
+        string,
+      ][]) {
+        if (
+          key !== currentKey &&
+          normalizeShortcutToEnglish(val).toLowerCase() === norm
+        ) {
           return { conflictWith: mainAppLabels[key].title };
         }
       }
       return null;
     },
-    [mainApp, mainAppLabels]
+    [mainApp, mainAppLabels],
   );
 
   const validateMiniplayerCandidate = useCallback(
     (currentKey: keyof MiniplayerShortcutsSettings) => (candidate: string) => {
       const norm = normalizeShortcutToEnglish(candidate).toLowerCase();
-      for (const [key, val] of Object.entries(miniplayer) as [keyof MiniplayerShortcutsSettings, string][]) {
-        if (key !== currentKey && normalizeShortcutToEnglish(val).toLowerCase() === norm) {
+      for (const [key, val] of Object.entries(miniplayer) as [
+        keyof MiniplayerShortcutsSettings,
+        string,
+      ][]) {
+        if (
+          key !== currentKey &&
+          normalizeShortcutToEnglish(val).toLowerCase() === norm
+        ) {
           return { conflictWith: miniplayerLabels[key].title };
         }
       }
       return null;
     },
-    [miniplayer, miniplayerLabels]
+    [miniplayer, miniplayerLabels],
   );
 
-  const scopeTagLabels: Record<"global" | "mainApp" | "miniplayer", string> = {
-    global: t("settings.shortcuts.scope_global") || "Global",
-    mainApp: t("settings.shortcuts.scope_main_app") || "Main App",
-    miniplayer: t("settings.shortcuts.scope_overlay") || "Overlay",
-  };
+  const scopeTagLabels: Record<"global" | "mainApp" | "miniplayer", string> =
+    useMemo(
+      () => ({
+        global: t("settings.shortcuts.scope_global") || "Global",
+        mainApp: t("settings.shortcuts.scope_main_app") || "Main App",
+        miniplayer: t("settings.shortcuts.scope_overlay") || "Overlay",
+      }),
+      [t],
+    );
 
   const scopeTagStyles: Record<"global" | "mainApp" | "miniplayer", string> = {
-    global: "bg-amber-400/10 text-amber-300",
-    mainApp: "bg-border-alpha-14 text-text-secondary",
-    miniplayer: "bg-purple-400/10 text-purple-300",
+    global: "text-amber-300",
+    mainApp: "text-text-tertiary",
+    miniplayer: "text-purple-300",
   };
 
   interface ShortcutRowItem {
@@ -264,6 +464,8 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
     onChange: (val: string) => void;
     onReset: () => void;
     validateCandidate: (candidate: string) => { conflictWith: string } | null;
+    clearable?: boolean;
+    status?: GlobalShortcutState;
   }
 
   const allItems: ShortcutRowItem[] = useMemo(() => {
@@ -388,18 +590,6 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
         onChange: (val) => setMainAppShortcut("toggleQueue", val),
         onReset: () => resetShortcut("mainApp", "toggleQueue"),
         validateCandidate: validateMainAppCandidate("toggleQueue"),
-      },
-      {
-        id: "mainApp-toggleLyrics",
-        scope: "mainApp",
-        title: mainAppLabels.toggleLyrics.title,
-        desc: mainAppLabels.toggleLyrics.desc,
-        icon: MusicNote,
-        value: mainApp.toggleLyrics,
-        defaultValue: DEFAULT_SHORTCUTS.mainApp.toggleLyrics,
-        onChange: (val) => setMainAppShortcut("toggleLyrics", val),
-        onReset: () => resetShortcut("mainApp", "toggleLyrics"),
-        validateCandidate: validateMainAppCandidate("toggleLyrics"),
       },
       {
         id: "mainApp-toggleFullscreen",
@@ -533,7 +723,8 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
         icon: Widget5,
         value: global.toggleOverlay,
         defaultValue: DEFAULT_SHORTCUTS.global.toggleOverlay,
-        onChange: (val) => setGlobalShortcut("toggleOverlay", val),
+        status: globalStatus.toggleOverlay,
+        onChange: (val) => commitGlobalShortcut("toggleOverlay", val),
         onReset: () => resetShortcut("global", "toggleOverlay"),
         validateCandidate: validateGlobalCandidate("toggleOverlay"),
       },
@@ -545,10 +736,25 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
         icon: HeartFill,
         value: global.quickLikeSong,
         defaultValue: DEFAULT_SHORTCUTS.global.quickLikeSong,
-        onChange: (val) => setGlobalShortcut("quickLikeSong", val),
+        status: globalStatus.quickLikeSong,
+        onChange: (val) => commitGlobalShortcut("quickLikeSong", val),
         onReset: () => resetShortcut("global", "quickLikeSong"),
         validateCandidate: validateGlobalCandidate("quickLikeSong"),
       },
+      ...OPTIONAL_GLOBAL_ACTIONS.map((action): ShortcutRowItem => ({
+        id: `global-${action}`,
+        scope: "global",
+        title: globalLabels[action].title,
+        desc: globalLabels[action].desc,
+        icon: OPTIONAL_GLOBAL_ICONS[action],
+        value: global[action],
+        defaultValue: DEFAULT_SHORTCUTS.global[action],
+        clearable: true,
+        status: global[action] ? globalStatus[action] : undefined,
+        onChange: (val) => commitGlobalShortcut(action, val),
+        onReset: () => resetShortcut("global", action),
+        validateCandidate: validateGlobalCandidate(action),
+      })),
     ];
   }, [
     global,
@@ -557,7 +763,8 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
     globalLabels,
     mainAppLabels,
     miniplayerLabels,
-    setGlobalShortcut,
+    globalStatus,
+    commitGlobalShortcut,
     setMainAppShortcut,
     setMiniplayerShortcut,
     resetShortcut,
@@ -577,7 +784,7 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
           item.title.toLowerCase().includes(q) ||
           item.desc.toLowerCase().includes(q) ||
           scopeTagLabels[item.scope].toLowerCase().includes(q) ||
-          item.value.toLowerCase().includes(q)
+          item.value.toLowerCase().includes(q),
       );
     }
     return allItems.filter((item) => item.scope === activeScope);
@@ -601,7 +808,7 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
         count: allItems.filter((i) => i.scope === "global").length,
       },
     ],
-    [t, allItems]
+    [t, allItems],
   );
 
   return (
@@ -609,7 +816,7 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
       {/* ── Top Bar: Scope Tabs (Left) + Tiny Search Field (Right) ── */}
       <div className="flex items-center justify-between gap-3 mt-[8px] mb-[6px] w-full min-w-0">
         <div
-          className="inline-flex items-center gap-[4px] rounded-xl p-[4px] bg-bg-elevated select-none shrink-0"
+          className="inline-flex h-[34px] items-center rounded-item bg-fill p-[3px] select-none shrink-0"
           role="tablist"
           aria-label="Shortcut filter scopes"
         >
@@ -625,22 +832,21 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
                   if (localSearchQuery) setLocalSearchQuery("");
                   setActiveScope(tab.value);
                 }}
-                className={`group relative inline-flex items-center justify-center rounded-lg ${
-                  isRu ? "px-[13px]" : "px-[16px]"
-                } py-[7px] text-[13px] leading-none transition-colors duration-150 border-0 bg-transparent cursor-pointer select-none active:scale-[0.97] ${
+                className={`group relative inline-flex h-full items-center justify-center rounded-control ${
+                  isRu ? "px-[11px]" : "px-[12px]"
+                } text-body leading-none transition-colors duration-150 border-0 bg-transparent cursor-pointer select-none ${
                   isActive
                     ? "text-text-primary"
                     : "text-text-secondary hover:text-text-primary"
                 }`}
                 style={{
-                  fontFamily: "var(--font-inter), sans-serif",
                   fontWeight: 500,
                 }}
               >
                 {isActive && (
                   <motion.div
                     layoutId="shortcutsScopeTab"
-                    className="absolute inset-0 rounded-lg bg-bg-primary shadow-sm"
+                    className="absolute inset-0 rounded-control bg-fill-hover"
                     transition={{
                       type: "spring",
                       stiffness: 500,
@@ -652,10 +858,10 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
                 <span className="relative z-10 leading-none flex items-center gap-1.5">
                   <span className="leading-none">{tab.label}</span>
                   <span
-                    className={`text-[12px] font-normal tabular-nums leading-none transition-colors ${
+                    className={`text-caption font-normal tabular-nums leading-none transition-colors ${
                       isActive
-                        ? "text-text-tertiary"
-                        : "text-text-tertiary/60 group-hover:text-text-tertiary"
+                        ? "text-text-secondary"
+                        : "text-text-tertiary group-hover:text-text-secondary"
                     }`}
                   >
                     {tab.count}
@@ -668,15 +874,17 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
 
         {/* Right Tools: Search Field + Small Reset Button */}
         <div className="relative flex items-center justify-end flex-1 min-w-0 gap-2">
-          <div className="h-[35px] px-3 rounded-lg bg-bg-elevated flex items-center gap-2.5 transition-colors w-full max-w-[240px] min-w-[130px] border-none outline-none ring-0">
-            <Search2Line size={16} className="text-text-tertiary shrink-0" />
+          <div className="h-[34px] px-3 rounded-[10px] bg-fill flex items-center gap-2 transition-colors w-full max-w-[220px] min-w-[130px] border-none outline-none ring-0">
+            <Search2Line size={15} className="text-text-tertiary shrink-0" />
             <input
               type="text"
               value={localSearchQuery}
               onChange={(e) => setLocalSearchQuery(e.target.value)}
-              placeholder={t("settings.shortcuts.search_placeholder") || "Search shortcuts..."}
-              className="w-full bg-transparent border-none outline-none text-[13px] text-text-primary placeholder:text-text-tertiary p-0 min-w-0 truncate"
-              style={font}
+              placeholder={
+                t("settings.shortcuts.search_placeholder") ||
+                "Search shortcuts..."
+              }
+              className="w-full bg-transparent border-none outline-none text-body text-text-primary placeholder:text-text-tertiary p-0 min-w-0 truncate"
             />
             {localSearchQuery && (
               <button
@@ -690,178 +898,183 @@ export function ShortcutsTab({ searchQuery: externalQuery }: { searchQuery?: str
             )}
           </div>
 
-          <Tooltip
-            content={t("settings.shortcuts.reset_all") || "Reset all shortcuts"}
-            side="bottom"
-            sideOffset={6}
-          >
-            <button
-              type="button"
-              onClick={() => setIsResetModalOpen(true)}
-              aria-label={t("settings.shortcuts.reset_all") || "Reset all shortcuts"}
-              className="h-[35px] w-[35px] rounded-lg bg-bg-elevated hover:bg-border-alpha-14 flex items-center justify-center text-text-tertiary hover:text-text-primary transition-colors cursor-pointer shrink-0 border-0 p-0 active:scale-[0.95]"
-            >
-              <ResetIcon size={14.5} className="-top-[1px]" style={{ top: "-1px" }} />
-            </button>
-          </Tooltip>
+          <ConfirmPill
+            className="h-[34px]"
+            label={t("settings.shortcuts.reset_all_button") || "Reset defaults"}
+            actionLabel={
+              t("settings.shortcuts.reset_all") || "Reset all shortcuts"
+            }
+            confirmLabel={t("common.confirm") || "Confirm"}
+            onConfirm={handleConfirmResetAll}
+          />
         </div>
       </div>
 
       {/* ── Action Rows List with Slide-Up Animation ── */}
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={isSearching ? `search:${effectiveQuery}` : activeScope}
-          initial={{ opacity: 0, y: 7 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.12, ease: "easeOut" }}
-          className="flex flex-col gap-0.5"
-        >
-          {filteredItems.length === 0 ? (
-            <div className="py-8 text-center text-text-tertiary text-[13px]" style={font}>
-              {t("search.no_results") || "No matching shortcuts found"}
-            </div>
-          ) : (
-            filteredItems.map((item) => {
-              const Icon = item.icon;
-              const isRowRecording = recordingId === item.id;
-              return (
-                <div
-                  key={item.id}
-                  data-shortcut-row={item.id}
-                  onClick={() => {
-                    setRecordingId((prev) => (prev === item.id ? null : item.id));
-                  }}
-                  className="h-[44px] min-h-[44px] flex items-center justify-between gap-4 px-3 rounded-xl hover:bg-border-alpha-10 transition-colors group select-none cursor-pointer"
-                >
-                  {/* Left: Icon + Title + Scope Badge */}
-                  <div className="flex items-center gap-3 min-w-0 pointer-events-none">
-                    <span className="text-text-tertiary group-hover:text-text-primary transition-colors shrink-0 flex items-center justify-center w-[20px] h-[20px]">
-                      <Icon size={18} weight="Bold" />
-                    </span>
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-[13.5px] font-[500] text-text-primary truncate" style={font}>
-                        {item.title}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10.5px] font-[500] shrink-0 tracking-wide ${scopeTagStyles[item.scope]}`}
-                        style={font}
-                      >
-                        {scopeTagLabels[item.scope]}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Right: Global toggle (main app actions) + Shortcut Recorder */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.scope === "mainApp" && canUseGlobal && (() => {
-                      const action = item.id.slice("mainApp-".length) as MainAppShortcutAction;
-                      const isGlobal = Boolean(mainAppGlobal[action]);
-                      const failed = isGlobal && mainAppGlobalStatus[action] === false;
-                      const tooltip = failed
-                        ? t("settings.shortcuts.global_failed")
-                        : isGlobal
-                          ? t("settings.shortcuts.global_on_desc")
-                          : t("settings.shortcuts.global_off_desc");
-                      return (
-                        <Tooltip content={tooltip} side="top" sideOffset={6} multiline>
-                          <button
-                            type="button"
-                            aria-pressed={isGlobal}
-                            aria-label={t("settings.shortcuts.make_global")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleGlobal(action);
-                            }}
-                            className={`h-[26px] px-2.5 rounded-full inline-flex items-center gap-1.5 text-[11.5px] font-[500] border-0 cursor-pointer transition-colors active:scale-[0.96] ${
-                              failed
-                                ? "bg-red-400/10 text-red-300"
-                                : isGlobal
-                                  ? scopeTagStyles.global
-                                  : "bg-transparent text-text-tertiary hover:text-text-primary hover:bg-border-alpha-14"
-                            }`}
-                            style={font}
-                          >
-                            <GlobeLine size={13} />
-                            <span>{scopeTagLabels.global}</span>
-                          </button>
-                        </Tooltip>
-                      );
-                    })()}
-                    <ShortcutRecorder
-                      value={item.value}
-                      defaultValue={item.defaultValue}
-                      onChange={(val) => {
-                        item.onChange(val);
-                        setRecordingId(null);
-                      }}
-                      onReset={item.onReset}
-                      isGlobal={
-                        item.scope === "global" ||
-                        (item.scope === "mainApp" &&
-                          Boolean(mainAppGlobal[item.id.slice("mainApp-".length) as MainAppShortcutAction]))
-                      }
-                      validateCandidate={item.validateCandidate}
-                      isRecording={isRowRecording}
-                      onRecordingChange={(rec) => setRecordingId(rec ? item.id : null)}
-                    />
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </motion.div>
-      </AnimatePresence>
-
-      {/* ── Global Reset Confirmation Modal ── */}
-      <Dialog
-        open={isResetModalOpen}
-        onOpenChange={setIsResetModalOpen}
-        maxWidth={310}
-        zIndex={250}
-        className="p-[16px]"
+      <div
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget && e.propertyName === "height") {
+            setListResizing(false);
+          }
+        }}
+        style={{
+          height: listHeight,
+          transition: LIST_RESIZE_TRANSITION,
+          overflow: listResizing ? "hidden" : "visible",
+        }}
       >
-        <div className="flex flex-col">
-          {/* Header */}
-          <div className="flex flex-col gap-[3px]">
-            <h3
-              className="text-[15px] font-[600] text-text-primary m-0 leading-tight"
-              style={{ fontFamily: "var(--font-inter), sans-serif", letterSpacing: "-0.01em" }}
+        <div ref={listSize.attach} className="relative">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.div
+              key={isSearching ? `search:${effectiveQuery}` : activeScope}
+              initial={{ opacity: 0, y: 7 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
+              className="flex flex-wrap gap-[8px] pt-[10px]"
             >
-              {isRu ? "Все горячие клавиши будут сброшены" : "All shortkeys will be reset"}
-            </h3>
-            <p
-              className="text-[12.5px] text-text-tertiary m-0 mt-[4px] leading-snug"
-              style={{ fontFamily: "var(--font-inter), sans-serif" }}
-            >
-              {isRu
-                ? "Все комбинации клавиш вернутся к значениям по умолчанию. Это действие нельзя отменить."
-                : "All customized shortcut keys will be restored to their factory defaults. This action cannot be undone."}
-            </p>
-          </div>
+              {filteredItems.length === 0 ? (
+                <div className="w-full py-8 text-center text-text-tertiary text-body">
+                  {t("search.no_results") || "No matching shortcuts found"}
+                </div>
+              ) : (
+                filteredItems.map((item) => {
+                  const Icon = item.icon;
+                  const isRowRecording = recordingId === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      data-shortcut-row={item.id}
+                      onClick={() => {
+                        setRecordingId((prev) =>
+                          prev === item.id ? null : item.id,
+                        );
+                      }}
+                      className="inline-flex min-h-[50px] items-center gap-[14px] rounded-[14px] bg-fill py-[8px] pl-[12px] pr-[8px] transition-colors group select-none cursor-pointer hover:bg-fill-hover"
+                    >
+                      {/* Left: Icon + Title + Scope Badge */}
+                      <div className="flex items-center gap-[10px] min-w-0 pointer-events-none">
+                        <span className="text-text-primary shrink-0 flex items-center justify-center w-[22px] h-[22px]">
+                          <Icon size={20} weight="Bold" />
+                        </span>
+                        <div className="flex flex-col gap-[2px] min-w-0">
+                          <span className="text-label font-[500] leading-tight text-text-primary truncate">
+                            {item.title}
+                          </span>
+                          {item.status === "taken" ||
+                          item.status === "invalid" ? (
+                            <span
+                              data-shortcut-status={item.status}
+                              className="text-[11px] font-[500] leading-none text-rose-500 dark:text-rose-400"
+                            >
+                              {item.status === "taken"
+                                ? t("settings.shortcuts.taken_by_other_app") ||
+                                  "Taken by the system or another app"
+                                : t("settings.shortcuts.invalid_global") ||
+                                  "Can't be used as a global shortcut"}
+                            </span>
+                          ) : (
+                            <span
+                              className={`text-[11px] font-[500] leading-none ${scopeTagStyles[item.scope]}`}
+                            >
+                              {scopeTagLabels[item.scope]}
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-          {/* Actions: Cancel + Continue */}
-          <div className="flex items-center gap-[8px] mt-[16px]">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsResetModalOpen(false)}
-              className="flex-1 !h-[34px] text-[13px] !rounded-lg"
-            >
-              {t("common.cancel") || (isRu ? "Отмена" : "Cancel")}
-            </Button>
-
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleConfirmResetAll}
-              className="flex-1 !h-[34px] text-[13px] !rounded-lg !bg-accent-secondary !text-bg-primary hover:!opacity-90"
-            >
-              {isRu ? "Продолжить" : "Continue"}
-            </Button>
-          </div>
+                      {/* Right: Shortcut Recorder */}
+                      <ShortcutRecorder
+                        value={item.value}
+                        defaultValue={item.defaultValue}
+                        onChange={(val) => {
+                          item.onChange(val);
+                          setRecordingId(null);
+                        }}
+                        onReset={item.onReset}
+                        isGlobal={item.scope === "global"}
+                        clearable={item.clearable}
+                        validateCandidate={item.validateCandidate}
+                        isRecording={isRowRecording}
+                        onRecordingChange={(rec) =>
+                          setRecordingId(rec ? item.id : null)
+                        }
+                      />
+                    </div>
+                  );
+                })
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
-      </Dialog>
+      </div>
+
+      {isSearching ? null : (
+        <div className="mt-[18px]">
+          <SettingSection
+            label={t("settings.shortcuts.volume_section") || "Volume hotkeys"}
+          >
+            <SettingRow
+              title={
+                t("settings.shortcuts.volume_hold.title") ||
+                "When the key is held"
+              }
+              description={
+                t("settings.shortcuts.volume_hold.description") ||
+                "Keep changing the volume while a volume key is held, or change it once per press."
+              }
+              titleKey="settings.shortcuts.volume_hold.title"
+              descKey="settings.shortcuts.volume_hold.description"
+              control={
+                <SegmentedControl
+                  ariaLabel={
+                    t("settings.shortcuts.volume_hold.title") ||
+                    "When the key is held"
+                  }
+                  value={volumeHoldRepeats ? "hold" : "press"}
+                  onChange={(next) => setVolumeHoldRepeats(next === "hold")}
+                  options={[
+                    {
+                      value: "hold",
+                      label:
+                        t("settings.shortcuts.volume_hold.hold") ||
+                        "Keep changing",
+                    },
+                    {
+                      value: "press",
+                      label:
+                        t("settings.shortcuts.volume_hold.press") ||
+                        "Once per press",
+                    },
+                  ]}
+                />
+              }
+            />
+            <SettingRow
+              title={t("settings.shortcuts.volume_step.title") || "Volume step"}
+              description={
+                t("settings.shortcuts.volume_step.description") ||
+                "How much one press of a volume key changes the volume."
+              }
+              titleKey="settings.shortcuts.volume_step.title"
+              descKey="settings.shortcuts.volume_step.description"
+              control={
+                <SegmentedControl
+                  ariaLabel={
+                    t("settings.shortcuts.volume_step.title") || "Volume step"
+                  }
+                  value={toStepOption(volumeStep)}
+                  onChange={(next) => setVolumeStep(fromStepOption(next))}
+                  options={VOLUME_STEP_OPTIONS.map((step) => ({
+                    value: toStepOption(step),
+                    label: `${Math.round(step * 100)}%`,
+                  }))}
+                />
+              }
+            />
+          </SettingSection>
+        </div>
+      )}
     </div>
   );
 }

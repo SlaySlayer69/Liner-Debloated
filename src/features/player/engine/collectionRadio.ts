@@ -14,7 +14,9 @@ export interface CollectionRadioSource {
   coverUrl?: string;
 }
 
-export function collectionRadioContext(source: Pick<CollectionRadioSource, "kind" | "id">): string {
+export function collectionRadioContext(
+  source: Pick<CollectionRadioSource, "kind" | "id">,
+): string {
   return `${RADIO_CONTEXT_PREFIX}collection:${source.kind}:${source.id}`;
 }
 
@@ -24,7 +26,10 @@ export const SIMILAR_PER_OWN = 1;
 /** songs of the collection that seed the similar-song lookups of one batch */
 export const SEEDS_PER_BATCH = 3;
 
-export function shuffled<T>(items: readonly T[], random: () => number = Math.random): T[] {
+export function shuffled<T>(
+  items: readonly T[],
+  random: () => number = Math.random,
+): T[] {
   const out = items.slice();
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -34,7 +39,11 @@ export function shuffled<T>(items: readonly T[], random: () => number = Math.ran
 }
 
 /** up to `count` distinct tracks of the pool, chosen at random */
-export function pickSeeds(pool: readonly Track[], count: number, random: () => number = Math.random): Track[] {
+export function pickSeeds(
+  pool: readonly Track[],
+  count: number,
+  random: () => number = Math.random,
+): Track[] {
   return shuffled(pool, random).slice(0, Math.max(0, count));
 }
 
@@ -70,14 +79,21 @@ export function mixRadioBatch(
   const ownIds = new Set(own.map((track) => track.id));
   const usable = new Set<string>();
   const extra = similar.filter((track) => {
-    if (!track?.id || exclude.has(track.id) || ownIds.has(track.id) || usable.has(track.id)) return false;
+    if (
+      !track?.id ||
+      exclude.has(track.id) ||
+      ownIds.has(track.id) ||
+      usable.has(track.id)
+    )
+      return false;
     usable.add(track.id);
     return true;
   });
 
   let s = 0;
   const pushSimilar = () => {
-    for (let n = 0; n < SIMILAR_PER_OWN && s < extra.length; n++) push(extra[s++]);
+    for (let n = 0; n < SIMILAR_PER_OWN && s < extra.length; n++)
+      push(extra[s++]);
   };
   if (similarFirst) pushSimilar();
   for (const track of own) {
@@ -107,7 +123,8 @@ export class CollectionDeck {
       if (this.deck.length === 0) this.deck = shuffled(this.pool, this.random);
       while (this.deck.length > 0 && out.length < count) {
         const next = this.deck.shift()!;
-        if (!avoid.has(next.id) && !out.some((t) => t.id === next.id)) out.push(next);
+        if (!avoid.has(next.id) && !out.some((t) => t.id === next.id))
+          out.push(next);
       }
     }
     return out;

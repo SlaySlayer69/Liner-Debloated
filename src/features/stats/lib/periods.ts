@@ -1,6 +1,12 @@
 export type StatsPeriod = "day" | "week" | "month" | "year" | "all";
 
-export const STATS_PERIODS: readonly StatsPeriod[] = ["day", "week", "month", "year", "all"];
+export const STATS_PERIODS: readonly StatsPeriod[] = [
+  "day",
+  "week",
+  "month",
+  "year",
+  "all",
+];
 
 export interface PeriodRange {
   start: number;
@@ -40,14 +46,30 @@ export function getPeriodRange(
   switch (period) {
     case "day": {
       const d = startOfDay(ref);
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - offset);
-      const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+      const start = new Date(
+        d.getFullYear(),
+        d.getMonth(),
+        d.getDate() - offset,
+      );
+      const end = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate() + 1,
+      );
       return { start: start.getTime(), end: end.getTime() };
     }
     case "week": {
       const w = startOfWeek(ref);
-      const start = new Date(w.getFullYear(), w.getMonth(), w.getDate() - offset * 7);
-      const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+      const start = new Date(
+        w.getFullYear(),
+        w.getMonth(),
+        w.getDate() - offset * 7,
+      );
+      const end = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate() + 7,
+      );
       return { start: start.getTime(), end: end.getTime() };
     }
     case "month": {
@@ -62,8 +84,15 @@ export function getPeriodRange(
     }
     case "all": {
       const first = earliest ?? now;
-      const start = new Date(new Date(first).getFullYear(), new Date(first).getMonth(), 1);
-      return { start: start.getTime(), end: startOfDay(ref).getTime() + DAY_MS };
+      const start = new Date(
+        new Date(first).getFullYear(),
+        new Date(first).getMonth(),
+        1,
+      );
+      return {
+        start: start.getTime(),
+        end: startOfDay(ref).getTime() + DAY_MS,
+      };
     }
   }
 }
@@ -87,14 +116,27 @@ export interface PeriodBuckets {
 }
 
 /** chart buckets: hours of a day, days of a week / month, months of a year, months or years overall */
-export function getPeriodBuckets(period: StatsPeriod, range: PeriodRange): PeriodBuckets {
+export function getPeriodBuckets(
+  period: StatsPeriod,
+  range: PeriodRange,
+): PeriodBuckets {
   const buckets: PeriodBucket[] = [];
   const start = new Date(range.start);
 
   if (period === "day") {
     for (let h = 0; h < 24; h++) {
-      const s = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h);
-      const e = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h + 1);
+      const s = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate(),
+        h,
+      );
+      const e = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate(),
+        h + 1,
+      );
       buckets.push({ start: s.getTime(), end: e.getTime() });
     }
     return { unit: "hour", buckets };
@@ -103,7 +145,11 @@ export function getPeriodBuckets(period: StatsPeriod, range: PeriodRange): Perio
   if (period === "week" || period === "month") {
     let cursor = start;
     while (cursor.getTime() < range.end) {
-      const next = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+      const next = new Date(
+        cursor.getFullYear(),
+        cursor.getMonth(),
+        cursor.getDate() + 1,
+      );
       buckets.push({ start: cursor.getTime(), end: next.getTime() });
       cursor = next;
     }
@@ -112,12 +158,18 @@ export function getPeriodBuckets(period: StatsPeriod, range: PeriodRange): Perio
 
   const last = new Date(range.end - 1);
   const months =
-    (last.getFullYear() - start.getFullYear()) * 12 + last.getMonth() - start.getMonth() + 1;
+    (last.getFullYear() - start.getFullYear()) * 12 +
+    last.getMonth() -
+    start.getMonth() +
+    1;
 
   // more than two years of history reads better per year
   if (period === "all" && months > 24) {
     for (let y = start.getFullYear(); y <= last.getFullYear(); y++) {
-      buckets.push({ start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime() });
+      buckets.push({
+        start: new Date(y, 0, 1).getTime(),
+        end: new Date(y + 1, 0, 1).getTime(),
+      });
     }
     return { unit: "year", buckets };
   }

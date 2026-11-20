@@ -12,7 +12,7 @@ export function ExplicitBadge({
 
   return (
     <span
-      className={`inline-flex shrink-0 ${dim} items-center justify-center rounded-[2px] bg-text-tertiary pb-px ${fontSize} font-[800] leading-none text-bg-primary ${className}`}
+      className={`inline-flex shrink-0 ${dim} items-center justify-center rounded-[3px] bg-fill-strong pb-px ${fontSize} font-[700] leading-none text-text-secondary ${className}`}
     >
       E
     </span>

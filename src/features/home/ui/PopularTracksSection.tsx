@@ -1,5 +1,10 @@
 import { memo, useState, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useStableNavigate } from "@/shared/hooks/useStableNavigate";
+import {
+  collectionPath,
+  collectionPreviewState,
+} from "@/features/collection/lib/collectionPreview";
+import { prefetchCollection } from "@/features/collection/hooks/useCollection";
 import ScrollableRow from "@/shared/ui/ScrollableRow";
 import { playerEngine } from "@/features/player";
 import { useSongMenuItems } from "@/features/player/hooks/useSongMenuItems";
@@ -7,11 +12,12 @@ import { usePlayerStore } from "@/features/player/store/playerStore";
 import { useToast } from "@/shared/ui";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import type { PopularItem } from "../hooks/usePopularTracks";
-import type { Track } from "@/shared/types";
+
 import ArtistLink from "@/features/artist/ui/ArtistLink";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import ExplicitBadge from "@/shared/ui/ExplicitBadge";
 import { useTranslation } from "@/languages";
+import SectionHeading from "./SectionHeading";
 
 export interface PopularTracksSectionProps {
   title: string;
@@ -126,7 +132,7 @@ function TrackCard({
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-md bg-border-alpha-14">
+      <div className="relative aspect-square w-full overflow-hidden rounded-control bg-border-alpha-14">
         {showRanks && (
           <div
             className={`absolute top-2 left-2 z-10 flex items-center justify-center min-w-[22px] h-[20px] px-1 rounded-[3px] text-[10px] font-bold tracking-tight ${
@@ -158,20 +164,24 @@ function TrackCard({
       </div>
 
       <div className="flex flex-col mt-[8px]">
-        <span className="truncate text-[14px] font-[500] text-text-primary">
+        <span className="truncate text-label font-[500] text-text-primary">
           {item.item.title}
         </span>
-        <div className="flex min-w-0 items-center overflow-hidden text-[13px] text-text-tertiary">
-          {item.item.explicit && <ExplicitBadge size="md" className="mr-[6px] shrink-0" />}
+        <div className="flex min-w-0 items-center overflow-hidden text-body text-text-tertiary">
+          {item.item.explicit && (
+            <ExplicitBadge size="md" className="mr-[6px] shrink-0" />
+          )}
           <ArtistLink
             name={item.item.artists}
             artistId={item.item.artistId}
             artistList={item.item.artistList}
-            className="text-[13px] text-text-tertiary"
+            className="text-body text-text-tertiary"
           />
         </div>
         {caption && (
-          <span className="truncate text-[12px] text-text-tertiary tabular-nums">{caption}</span>
+          <span className="truncate text-[12px] text-text-tertiary tabular-nums">
+            {caption}
+          </span>
         )}
       </div>
 
@@ -198,7 +208,7 @@ function AlbumCard({
   showRanks?: boolean;
 }) {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useStableNavigate();
 
   const menuItems = useSongMenuItems({
     id: item.item.id,
@@ -232,17 +242,23 @@ function AlbumCard({
 
   const handleClick = () => {
     navigate(
-      `/collection?type=album&id=${encodeURIComponent(item.item.id)}`,
+      collectionPath("album", item.item.id),
+      collectionPreviewState({
+        coverUrl: item.item.coverUrl,
+        title: item.item.title,
+        subtitle: item.item.artist,
+      }),
     );
   };
 
   return (
     <div
       className="group flex-shrink-0 w-[175px] cursor-pointer select-none"
+      onPointerDown={() => prefetchCollection("album", item.item.id)}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-md bg-border-alpha-14">
+      <div className="relative aspect-square w-full overflow-hidden rounded-control bg-border-alpha-14">
         {showRanks && (
           <div className="absolute top-2 left-2 z-10 flex items-center justify-center min-w-[22px] h-[20px] px-1 rounded-[3px] text-[10px] font-bold tracking-tight bg-bg-panel text-text-secondary">
             #{index + 1}
@@ -262,14 +278,18 @@ function AlbumCard({
         )}
       </div>
       <div className="flex flex-col mt-[8px]">
-        <span className="truncate text-[14px] font-[500] text-text-primary">
+        <span className="truncate text-label font-[500] text-text-primary">
           {item.item.title}
         </span>
-        <div className="flex min-w-0 items-center overflow-hidden text-[13px] text-text-tertiary">
-          {item.item.explicit && <ExplicitBadge size="md" className="mr-[6px] shrink-0" />}
-          <span className="truncate text-[13px] text-text-tertiary">
-            {item.item.artist}
-          </span>
+        <div className="flex min-w-0 items-center overflow-hidden text-body text-text-tertiary">
+          {item.item.explicit && (
+            <ExplicitBadge size="md" className="mr-[6px] shrink-0" />
+          )}
+          <ArtistLink
+            name={item.item.artist}
+            artistList={item.item.artistList}
+            className="text-body text-text-tertiary"
+          />
         </div>
       </div>
 
@@ -296,7 +316,7 @@ function PlaylistCard({
   showRanks?: boolean;
 }) {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useStableNavigate();
 
   const menuItems = useSongMenuItems({
     id: item.item.id,
@@ -330,17 +350,23 @@ function PlaylistCard({
 
   const handleClick = () => {
     navigate(
-      `/collection?type=playlist&id=${encodeURIComponent(item.item.id)}`,
+      collectionPath("playlist", item.item.id),
+      collectionPreviewState({
+        coverUrl: item.item.coverUrl,
+        title: item.item.title,
+        subtitle: item.item.owner,
+      }),
     );
   };
 
   return (
     <div
       className="group flex-shrink-0 w-[175px] cursor-pointer select-none"
+      onPointerDown={() => prefetchCollection("playlist", item.item.id)}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-md bg-border-alpha-14">
+      <div className="relative aspect-square w-full overflow-hidden rounded-control bg-border-alpha-14">
         {showRanks && (
           <div className="absolute top-2 left-2 z-10 flex items-center justify-center min-w-[22px] h-[20px] px-1 rounded-[3px] text-[10px] font-bold tracking-tight bg-bg-panel text-text-secondary">
             #{index + 1}
@@ -360,10 +386,10 @@ function PlaylistCard({
         )}
       </div>
       <div className="flex flex-col mt-[8px]">
-        <span className="truncate text-[14px] font-[500] text-text-primary">
+        <span className="truncate text-label font-[500] text-text-primary">
           {item.item.title}
         </span>
-        <span className="truncate text-[13px] text-text-tertiary">
+        <span className="truncate text-body text-text-tertiary">
           {item.item.owner}
         </span>
       </div>
@@ -390,7 +416,7 @@ function ArtistCard({
 }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const navigate = useStableNavigate();
 
   const menuItems = useSongMenuItems({
     id: item.item.id,
@@ -512,28 +538,16 @@ function PopularTracksSection({
 }: PopularTracksSectionProps) {
   return (
     <div className="flex flex-col">
-      <div className={`${headingMarginTop} px-8 flex items-center justify-between`}>
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2.5">
-            {icon && <div className="flex items-center shrink-0">{icon}</div>}
-            <h2
-              className="text-text-primary text-[21px] font-semibold m-0 leading-tight tracking-tight"
-              style={{ fontFamily: "var(--font-inter), sans-serif" }}
-            >
-              {title}
-            </h2>
-            {badge}
-          </div>
-          {subtitle && (
-            <p className="text-[13px] text-text-tertiary m-0 mt-0.5 font-normal">
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </div>
+      <SectionHeading
+        title={title}
+        subtitle={subtitle}
+        icon={icon}
+        badge={badge}
+        marginTop={headingMarginTop}
+      />
 
       <ScrollableRow
-        className={`flex gap-[28px] pl-8 pr-8 mt-[12px] overflow-x-auto pb-[2px] ${rowClassName}`}
+        className={`flex gap-[28px] pl-3 pr-3 mt-[12px] overflow-x-auto pb-[2px] ${rowClassName}`}
       >
         {items.map((item, index) => (
           <PopularItemCard
