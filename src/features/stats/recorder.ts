@@ -38,13 +38,18 @@ function ensureEpoch(owner: string, now = Date.now()): number {
 }
 
 function makeId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return `local:${crypto.randomUUID()}`;
   }
   return `local:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function artistsOf(track: Pick<Track, "artistList" | "artists" | "artistId">): PlayRecordArtist[] {
+function artistsOf(
+  track: Pick<Track, "artistList" | "artists" | "artistId">,
+): PlayRecordArtist[] {
   if (track.artistList && track.artistList.length > 0) {
     return track.artistList
       .filter((a) => a?.name)
@@ -54,7 +59,10 @@ function artistsOf(track: Pick<Track, "artistList" | "artists" | "artistId">): P
     .split(",")
     .map((name) => name.trim())
     .filter(Boolean)
-    .map((name, i) => ({ id: i === 0 ? track.artistId || undefined : undefined, name }));
+    .map((name, i) => ({
+      id: i === 0 ? track.artistId || undefined : undefined,
+      name,
+    }));
 }
 
 export interface ListenInput {
@@ -88,7 +96,10 @@ export function recordListen(input: ListenInput, now = Date.now()): void {
   void statsDb.put(record);
 }
 
-export function historyItemToRecord(item: PlaybackHistoryItem, owner: string): PlayRecord | null {
+export function historyItemToRecord(
+  item: PlaybackHistoryItem,
+  owner: string,
+): PlayRecord | null {
   const ts = Date.parse(item.listenedAt);
   if (!item.track?.id || !Number.isFinite(ts)) return null;
   const track = toClientTrack(item.track);
@@ -115,7 +126,9 @@ const backfills = new Map<string, Promise<void>>();
  * imports the server-side history that predates local recording, once per account,
  * so the statistics are not empty on the first day
  */
-export function ensureHistoryBackfill(owner = currentStatsOwner()): Promise<void> {
+export function ensureHistoryBackfill(
+  owner = currentStatsOwner(),
+): Promise<void> {
   if (!owner) return Promise.resolve();
   if (readNumber(BACKFILL_KEY + owner) !== null) return Promise.resolve();
   const running = backfills.get(owner);

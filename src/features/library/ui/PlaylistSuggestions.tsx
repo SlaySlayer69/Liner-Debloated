@@ -23,10 +23,17 @@ interface PlaylistSuggestionsProps {
 }
 
 /** similar songs under an own playlist: click plays one, double-click adds it */
-function PlaylistSuggestions({ playlistId, playlistTitle, tracks }: PlaylistSuggestionsProps) {
+function PlaylistSuggestions({
+  playlistId,
+  playlistTitle,
+  tracks,
+}: PlaylistSuggestionsProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { items, isLoading, failed, reload, remove } = usePlaylistSuggestions(playlistId, tracks);
+  const { items, isLoading, failed, reload, remove } = usePlaylistSuggestions(
+    playlistId,
+    tracks,
+  );
   const addTrack = useAddPlaylistTracks();
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -43,7 +50,9 @@ function PlaylistSuggestions({ playlistId, playlistTitle, tracks }: PlaylistSugg
       } catch (error) {
         if (error instanceof ApiError && error.status === 409) {
           remove(track.id);
-          toast(t("common.track_already_in_playlist"), "error", { description: track.title });
+          toast(t("common.track_already_in_playlist"), "error", {
+            description: track.title,
+          });
         } else {
           toast(t("common.failed_add_playlist"), "error");
         }
@@ -57,7 +66,10 @@ function PlaylistSuggestions({ playlistId, playlistTitle, tracks }: PlaylistSugg
   if (tracks.length === 0) return null;
 
   return (
-    <section className="mt-[28px] px-[8px]" aria-label={t("playlist.suggestions_title")}>
+    <section
+      className="mt-[28px] px-[8px]"
+      aria-label={t("playlist.suggestions_title")}
+    >
       <div className="flex items-center justify-between gap-3 px-[8px]">
         <div className="flex min-w-0 flex-col gap-[2px]">
           <h3
@@ -84,9 +96,13 @@ function PlaylistSuggestions({ playlistId, playlistTitle, tracks }: PlaylistSugg
       </div>
 
       <div className="mt-[8px] flex flex-col">
-        {items.length === 0 && isLoading &&
+        {items.length === 0 &&
+          isLoading &&
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex h-[64px] items-center gap-[14px] px-[8px]">
+            <div
+              key={i}
+              className="flex h-[64px] items-center gap-[14px] px-[8px]"
+            >
               <div className="skeleton-shimmer h-[48px] w-[48px] shrink-0 rounded-md" />
               <div className="flex flex-1 flex-col gap-[6px]">
                 <div className="skeleton-shimmer h-[13px] w-[35%] rounded" />
@@ -96,8 +112,13 @@ function PlaylistSuggestions({ playlistId, playlistTitle, tracks }: PlaylistSugg
           ))}
 
         {items.length === 0 && !isLoading && (
-          <p className="m-0 px-[8px] py-3 text-[13px] text-text-tertiary" style={font}>
-            {failed ? t("playlist.suggestions_failed") : t("playlist.suggestions_empty")}
+          <p
+            className="m-0 px-[8px] py-3 text-[13px] text-text-tertiary"
+            style={font}
+          >
+            {failed
+              ? t("playlist.suggestions_failed")
+              : t("playlist.suggestions_empty")}
           </p>
         )}
 
@@ -116,7 +137,14 @@ function PlaylistSuggestions({ playlistId, playlistTitle, tracks }: PlaylistSugg
               duration={formatDuration(track.durationMs)}
               durationMs={track.durationMs}
               explicit={track.explicit}
-              onPlay={() => void playerEngine.playTrack(track, [track], `${track.title} Radio`, track.coverUrl)}
+              onPlay={() =>
+                void playerEngine.playTrack(
+                  track,
+                  [track],
+                  `${track.title} Radio`,
+                  track.coverUrl,
+                )
+              }
               onDoubleClick={() => void handleAdd(track)}
             />
           </div>

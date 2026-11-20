@@ -2,7 +2,10 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react";
-import { useGlobalShortcuts, type GlobalShortcutsOptions } from "./useGlobalShortcuts";
+import {
+  useGlobalShortcuts,
+  type GlobalShortcutsOptions,
+} from "./useGlobalShortcuts";
 
 const playerState: {
   volume: number;
@@ -34,14 +37,16 @@ vi.mock("@/features/player", () => ({
 }));
 
 import { playerEngine } from "@/features/player";
+import { useShortcutsStore } from "@/features/shortcuts";
 
-function baseOptions(overrides: Partial<GlobalShortcutsOptions> = {}): GlobalShortcutsOptions {
+function baseOptions(
+  overrides: Partial<GlobalShortcutsOptions> = {},
+): GlobalShortcutsOptions {
   return {
     searchOpen: false,
     openSearch: vi.fn(),
     closeSearch: vi.fn(),
     rightPanelOpen: false,
-    rightPanelTab: "queue",
     openRightPanel: vi.fn(),
     closeRightPanel: vi.fn(),
     fullscreenOpen: false,
@@ -56,7 +61,10 @@ function Harness({ options }: { options: GlobalShortcutsOptions }) {
   return null;
 }
 
-function mount(options: GlobalShortcutsOptions): { container: HTMLDivElement; root: Root } {
+function mount(options: GlobalShortcutsOptions): {
+  container: HTMLDivElement;
+  root: Root;
+} {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -153,11 +161,11 @@ describe("useGlobalShortcuts", () => {
     expect(openFullscreen).not.toHaveBeenCalled();
   });
 
-  it("Q opens the right panel on the Queue tab when closed, and closes it when already on Queue", () => {
+  it("Q opens the queue panel when closed and closes it when open", () => {
     const openRightPanel = vi.fn();
     mounted = mount(baseOptions({ rightPanelOpen: false, openRightPanel }));
     press("KeyQ");
-    expect(openRightPanel).toHaveBeenCalledWith("queue");
+    expect(openRightPanel).toHaveBeenCalledTimes(1);
     expect(playerEngine.togglePlayPause).not.toHaveBeenCalled();
     expect(playerEngine.seek).not.toHaveBeenCalled();
 
@@ -165,46 +173,16 @@ describe("useGlobalShortcuts", () => {
     document.body.removeChild(mounted.container);
 
     const closeRightPanel = vi.fn();
-    mounted = mount(baseOptions({ rightPanelOpen: true, rightPanelTab: "queue", closeRightPanel }));
+    mounted = mount(baseOptions({ rightPanelOpen: true, closeRightPanel }));
     press("KeyQ");
     expect(closeRightPanel).toHaveBeenCalledTimes(1);
   });
 
-  it("Q switches to the Queue tab (without closing) when the panel is open on Lyrics", () => {
-    const openRightPanel = vi.fn();
-    const closeRightPanel = vi.fn();
-    mounted = mount(
-      baseOptions({ rightPanelOpen: true, rightPanelTab: "lyrics", openRightPanel, closeRightPanel }),
-    );
-    press("KeyQ");
-    expect(openRightPanel).toHaveBeenCalledWith("queue");
-    expect(closeRightPanel).not.toHaveBeenCalled();
-  });
-
-  it("L opens the right panel on the Lyrics tab when closed, and closes it when already on Lyrics", () => {
+  it("L does not open the queue panel", () => {
     const openRightPanel = vi.fn();
     mounted = mount(baseOptions({ rightPanelOpen: false, openRightPanel }));
     press("KeyL");
-    expect(openRightPanel).toHaveBeenCalledWith("lyrics");
-
-    act(() => mounted!.root.unmount());
-    document.body.removeChild(mounted.container);
-
-    const closeRightPanel = vi.fn();
-    mounted = mount(baseOptions({ rightPanelOpen: true, rightPanelTab: "lyrics", closeRightPanel }));
-    press("KeyL");
-    expect(closeRightPanel).toHaveBeenCalledTimes(1);
-  });
-
-  it("L switches to the Lyrics tab (without closing) when the panel is open on Queue", () => {
-    const openRightPanel = vi.fn();
-    const closeRightPanel = vi.fn();
-    mounted = mount(
-      baseOptions({ rightPanelOpen: true, rightPanelTab: "queue", openRightPanel, closeRightPanel }),
-    );
-    press("KeyL");
-    expect(openRightPanel).toHaveBeenCalledWith("lyrics");
-    expect(closeRightPanel).not.toHaveBeenCalled();
+    expect(openRightPanel).not.toHaveBeenCalled();
   });
 
   it("M mutes and restores the previous volume level on toggle", () => {
@@ -334,6 +312,43 @@ describe("useGlobalShortcuts", () => {
     expect(playerEngine.seek).toHaveBeenCalledTimes(1);
   });
 
+  describe("volume hotkey settings", () => {
+    afterEach(() => {
+      useShortcutsStore.setState({ volumeStep: 0.05, volumeHoldRepeats: true });
+    });
+
+    it("changes volume once per press when holding is set to one step", () => {
+      useShortcutsStore.setState({ volumeHoldRepeats: false });
+      playerState.volume = 0.5;
+      mounted = mount(baseOptions());
+
+      press("ArrowUp");
+      press("ArrowUp", { repeat: true });
+      press("ArrowUp", { repeat: true });
+      expect(playerEngine.setVolume).toHaveBeenCalledTimes(1);
+
+      const held = press("ArrowUp", { repeat: true });
+      expect(held.defaultPrevented).toBe(true);
+    });
+
+    it("keeps changing volume while held by default", () => {
+      playerState.volume = 0.5;
+      mounted = mount(baseOptions());
+      press("ArrowDown");
+      press("ArrowDown", { repeat: true });
+      press("ArrowDown", { repeat: true });
+      expect(playerEngine.setVolume).toHaveBeenCalledTimes(3);
+    });
+
+    it("uses the chosen volume step", () => {
+      useShortcutsStore.setState({ volumeStep: 0.1 });
+      playerState.volume = 0.5;
+      mounted = mount(baseOptions());
+      press("ArrowUp");
+      expect(playerEngine.setVolume).toHaveBeenLastCalledWith(0.6);
+    });
+  });
+
   describe("Escape priority", () => {
     it("closes Search first when Search, the right panel and Fullscreen are all open", () => {
       const closeSearch = vi.fn();
@@ -375,7 +390,12 @@ describe("useGlobalShortcuts", () => {
     it("closes Fullscreen Player next", () => {
       const closeFullscreen = vi.fn();
       mounted = mount(
-        baseOptions({ searchOpen: false, rightPanelOpen: false, fullscreenOpen: true, closeFullscreen }),
+        baseOptions({
+          searchOpen: false,
+          rightPanelOpen: false,
+          fullscreenOpen: true,
+          closeFullscreen,
+        }),
       );
       press("Escape");
       expect(closeFullscreen).toHaveBeenCalledTimes(1);

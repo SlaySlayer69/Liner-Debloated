@@ -28,7 +28,9 @@ describe("lookupGenre", () => {
   it("asks the network once per artist and remembers the answer", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({ results: [{ artistName: "Radiohead", primaryGenreName: "Alternative" }] }),
+      json: async () => ({
+        results: [{ artistName: "Radiohead", primaryGenreName: "Alternative" }],
+      }),
     });
 
     expect(await lookupGenre("Radiohead")).toBe("Alternative");

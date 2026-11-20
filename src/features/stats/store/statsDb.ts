@@ -14,7 +14,8 @@ type Listener = () => void;
 class StatsDb {
   private dbPromise: Promise<IDBDatabase> | null = null;
   // used when indexeddb is unavailable (tests, broken profile)
-  private memory: PlayRecord[] | null = typeof indexedDB === "undefined" ? [] : null;
+  private memory: PlayRecord[] | null =
+    typeof indexedDB === "undefined" ? [] : null;
   private listeners = new Set<Listener>();
 
   private open(): Promise<IDBDatabase> {
@@ -99,7 +100,11 @@ class StatsDb {
   }
 
   /** listens of `owner` with start <= ts < end, oldest first */
-  async getRange(owner: string, start: number, end: number): Promise<PlayRecord[]> {
+  async getRange(
+    owner: string,
+    start: number,
+    end: number,
+  ): Promise<PlayRecord[]> {
     if (this.memory) {
       return this.memory
         .filter((r) => r.owner === owner && r.ts >= start && r.ts < end)
@@ -110,7 +115,9 @@ class StatsDb {
       return await new Promise<PlayRecord[]>((resolve, reject) => {
         const tx = db.transaction(STORE, "readonly");
         const index = tx.objectStore(STORE).index(OWNER_TS_INDEX);
-        const req = index.getAll(IDBKeyRange.bound([owner, start], [owner, end], false, true));
+        const req = index.getAll(
+          IDBKeyRange.bound([owner, start], [owner, end], false, true),
+        );
         req.onsuccess = () => resolve(req.result as PlayRecord[]);
         req.onerror = () => reject(req.error);
       });
@@ -133,8 +140,11 @@ class StatsDb {
       return await new Promise<number | null>((resolve, reject) => {
         const tx = db.transaction(STORE, "readonly");
         const index = tx.objectStore(STORE).index(OWNER_TS_INDEX);
-        const req = index.openCursor(IDBKeyRange.bound([owner, -Infinity], [owner, Infinity]));
-        req.onsuccess = () => resolve(req.result ? (req.result.value as PlayRecord).ts : null);
+        const req = index.openCursor(
+          IDBKeyRange.bound([owner, -Infinity], [owner, Infinity]),
+        );
+        req.onsuccess = () =>
+          resolve(req.result ? (req.result.value as PlayRecord).ts : null);
         req.onerror = () => reject(req.error);
       });
     } catch {

@@ -1,75 +1,103 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter/opsz.css";
+@import "@fontsource-variable/inter/opsz-italic.css";
+
+/* SF Pro variable cut to Latin, Cyrillic and punctuation, width pinned to
+   100; weight 1-1000 and optical size 17-28 stay, so text sizes get the Text
+   design and large headings the Display one, as on macOS */
+@font-face {
+  font-family: "SF Pro";
+  src: url("../assets/fonts/SF-Pro.woff2") format("woff2");
+  font-weight: 1 1000;
+  font-style: normal;
+  font-display: swap;
+}
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, .dark, .dark *));
 
 :root {
+  --login-backdrop: #141417;
+  --login-glow: #4b5272;
+  --login-glow-secondary: #3f4560;
   --bg-canvas: #e4e4e7;
   --bg-surface: #ffffff;
-  --bg-primary: #f5f5f7; 
-  --bg-elevated: #e6e6eb; 
-  --bg-panel: #dedee3; 
+  --bg-primary: #f5f5f7;
+  --bg-elevated: #e6e6eb;
+  --bg-panel: #dedee3;
   --bg-overlay: rgba(245, 245, 247, 0.96);
   --bg-toolbox: rgba(0, 0, 0, 0.04);
   --bg-toolbox-active: rgba(0, 0, 0, 0.08);
-  --border-toolbox-divider: rgba(0, 0, 0, 0.10);
-  
-  --border-primary: #e4e4e7; 
-  --border-secondary: #d4d4d8; 
-  --border-tertiary: #a1a1aa; 
-  --border-white-alpha-14: rgba(0, 0, 0, 0.06); 
-  --border-white-alpha-33: rgba(0, 0, 0, 0.14); 
+  --bg-glass: rgba(255, 255, 255, 0.55);
+  --border-toolbox-divider: rgba(0, 0, 0, 0.1);
 
-  --text-primary: #18181b; 
-  --text-secondary: rgba(0, 0, 0, 0.65); 
-  --text-tertiary: rgba(0, 0, 0, 0.45); 
+  --border-primary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+  --border-tertiary: #a1a1aa;
+  --border-white-alpha-14: rgba(0, 0, 0, 0.06);
+  --border-white-alpha-33: rgba(0, 0, 0, 0.14);
 
-  --accent-primary: #ff3b3b; 
+  --text-primary: #18181b;
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-tertiary: rgba(0, 0, 0, 0.45);
+
+  --accent-primary: #ff3b3b;
   --accent-secondary: #ff5c5c;
   --accent-tertiary: #ff7d7d;
-  --accent-warning: #d97706; 
-  
-  --btn-primary-bg: #18181b; 
-  --btn-primary-text: #ffffff; 
+  --accent-warning: #d97706;
+
+  --btn-primary-bg: #18181b;
+  --btn-primary-text: #ffffff;
+
+  /* design tokens, see docs/DESIGN.md */
+  --fill-subtle: rgba(0, 0, 0, 0.03);
+  --fill: rgba(0, 0, 0, 0.05);
+  --fill-hover: rgba(0, 0, 0, 0.08);
+  --fill-strong: rgba(0, 0, 0, 0.1);
+  --surface-glass: rgba(245, 245, 247, 0.92);
 
   --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
   --radius-lg: 10px;
-  --radius-xl: 12px;
   --radius-2xl: 14px;
   --radius-3xl: 16px;
-  --radius-4xl: 10px;
-  --radius-5xl: 12px;
 }
 
-:root[data-theme="light"], :root.light {
+:root[data-theme="light"],
+:root.light {
   --bg-canvas: #e4e4e7;
   --bg-surface: #ffffff;
-  --bg-primary: #f5f5f7; 
-  --bg-elevated: #e6e6eb; 
-  --bg-panel: #dedee3; 
+  --bg-primary: #f5f5f7;
+  --bg-elevated: #e6e6eb;
+  --bg-panel: #dedee3;
   --bg-overlay: rgba(245, 245, 247, 0.96);
   --bg-toolbox: rgba(0, 0, 0, 0.04);
   --bg-toolbox-active: rgba(0, 0, 0, 0.08);
-  --border-toolbox-divider: rgba(0, 0, 0, 0.10);
-  
-  --border-primary: #e4e4e7; 
-  --border-secondary: #d4d4d8; 
-  --border-tertiary: #a1a1aa; 
-  --border-white-alpha-14: rgba(0, 0, 0, 0.06); 
-  --border-white-alpha-33: rgba(0, 0, 0, 0.14); 
+  --bg-glass: rgba(255, 255, 255, 0.55);
+  --border-toolbox-divider: rgba(0, 0, 0, 0.1);
 
-  --text-primary: #18181b; 
-  --text-secondary: rgba(0, 0, 0, 0.65); 
-  --text-tertiary: rgba(0, 0, 0, 0.45); 
+  --border-primary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+  --border-tertiary: #a1a1aa;
+  --border-white-alpha-14: rgba(0, 0, 0, 0.06);
+  --border-white-alpha-33: rgba(0, 0, 0, 0.14);
 
-  --accent-primary: #ff3b3b; 
+  --text-primary: #18181b;
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-tertiary: rgba(0, 0, 0, 0.45);
+
+  --accent-primary: #ff3b3b;
   --accent-secondary: #ff5c5c;
   --accent-tertiary: #ff7d7d;
-  --accent-warning: #d97706; 
-  
-  --btn-primary-bg: #18181b; 
-  --btn-primary-text: #ffffff; 
+  --accent-warning: #d97706;
+
+  --btn-primary-bg: #18181b;
+  --btn-primary-text: #ffffff;
+
+  /* design tokens, see docs/DESIGN.md */
+  --fill-subtle: rgba(0, 0, 0, 0.03);
+  --fill: rgba(0, 0, 0, 0.05);
+  --fill-hover: rgba(0, 0, 0, 0.08);
+  --fill-strong: rgba(0, 0, 0, 0.1);
+  --surface-glass: rgba(245, 245, 247, 0.92);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -78,17 +106,23 @@
     --bg-surface: #0a0a0a;
     --bg-primary: #0a0a0a;
     --bg-elevated: #141414;
-    --bg-panel: #1A1A1A;
+    --bg-panel: #1a1a1a;
     --bg-overlay: rgba(10, 10, 10, 0.96);
     --bg-toolbox: rgba(255, 255, 255, 0.04);
     --bg-toolbox-active: rgba(255, 255, 255, 0.09);
-    --border-toolbox-divider: rgba(255, 255, 255, 0.10);
+    --bg-glass: rgba(70, 70, 70, 0.2);
+    --border-toolbox-divider: rgba(255, 255, 255, 0.1);
 
-    --border-primary: #1A1A1A;
+    --border-primary: #1a1a1a;
     --border-secondary: #1d1f23;
     --border-tertiary: #1e2024;
-    --border-white-alpha-14: rgba(255, 255, 255, 0.08); /* #FFFFFF14 mapping approximated to rgba */
-    --border-white-alpha-33: rgba(255, 255, 255, 0.2);  /* #FFFFFF33 */
+    --border-white-alpha-14: rgba(
+      255,
+      255,
+      255,
+      0.08
+    ); /* #FFFFFF14 mapping approximated to rgba */
+    --border-white-alpha-33: rgba(255, 255, 255, 0.2); /* #FFFFFF33 */
 
     --text-primary: #ffffff;
     --text-secondary: rgba(255, 255, 255, 0.7);
@@ -99,23 +133,33 @@
     --accent-tertiary: #ff9b9b;
     --accent-warning: #ffde9e;
 
-    --btn-primary-bg: #F4F4F4;
+    --btn-primary-bg: #d9d9dd;
     --btn-primary-text: #000000;
+
+    --fill-subtle: rgba(255, 255, 255, 0.04);
+    --fill: rgba(255, 255, 255, 0.07);
+    --fill-hover: rgba(255, 255, 255, 0.1);
+    --fill-strong: rgba(255, 255, 255, 0.14);
+    --surface-glass: rgba(22, 22, 24, 0.9);
   }
 }
 
-:root[data-theme="dark"], :root.dark, [data-theme="dark"], .dark {
+:root[data-theme="dark"],
+:root.dark,
+[data-theme="dark"],
+.dark {
   --bg-canvas: #000000;
   --bg-surface: #0a0a0a;
   --bg-primary: #0a0a0a;
   --bg-elevated: #141414;
-  --bg-panel: #1A1A1A;
+  --bg-panel: #1a1a1a;
   --bg-overlay: rgba(10, 10, 10, 0.96);
   --bg-toolbox: rgba(255, 255, 255, 0.04);
   --bg-toolbox-active: rgba(255, 255, 255, 0.09);
-  --border-toolbox-divider: rgba(255, 255, 255, 0.10);
+  --bg-glass: rgba(70, 70, 70, 0.2);
+  --border-toolbox-divider: rgba(255, 255, 255, 0.1);
 
-  --border-primary: #1A1A1A;
+  --border-primary: #1a1a1a;
   --border-secondary: #1d1f23;
   --border-tertiary: #1e2024;
   --border-white-alpha-14: rgba(255, 255, 255, 0.08);
@@ -130,8 +174,14 @@
   --accent-tertiary: #ff9b9b;
   --accent-warning: #ffde9e;
 
-  --btn-primary-bg: #F4F4F4;
+  --btn-primary-bg: #d9d9dd;
   --btn-primary-text: #000000;
+
+  --fill-subtle: rgba(255, 255, 255, 0.04);
+  --fill: rgba(255, 255, 255, 0.07);
+  --fill-hover: rgba(255, 255, 255, 0.1);
+  --fill-strong: rgba(255, 255, 255, 0.14);
+  --surface-glass: rgba(22, 22, 24, 0.9);
 }
 
 @theme inline {
@@ -143,6 +193,7 @@
   --color-bg-overlay: var(--bg-overlay);
   --color-bg-toolbox: var(--bg-toolbox);
   --color-bg-toolbox-active: var(--bg-toolbox-active);
+  --color-bg-glass: var(--bg-glass);
   --color-border-toolbox-divider: var(--border-toolbox-divider);
 
   --color-border-primary: var(--border-primary);
@@ -163,21 +214,43 @@
   --color-btn-primary-bg: var(--btn-primary-bg);
   --color-btn-primary-text: var(--btn-primary-text);
 
+  --color-fill-subtle: var(--fill-subtle);
+  --color-fill: var(--fill);
+  --color-fill-hover: var(--fill-hover);
+  --color-fill-strong: var(--fill-strong);
+  --color-surface-glass: var(--surface-glass);
+
+  --color-login-backdrop: var(--login-backdrop);
+  --color-login-glow: var(--login-glow);
+  --color-login-glow-secondary: var(--login-glow-secondary);
+
+  /* legacy steps still in use; new code takes control / item / panel */
   --radius-xs: var(--radius-xs);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
   --radius-2xl: var(--radius-2xl);
   --radius-3xl: var(--radius-3xl);
-  --radius-4xl: var(--radius-4xl);
-  --radius-5xl: var(--radius-5xl);
+  --radius-control: 8px;
+  --radius-item: 12px;
+  --radius-panel: 20px;
 
-  --font-sans: var(--font-inter);
+  --text-caption: 12px;
+  --text-body: 13px;
+  --text-label: 14px;
+  --text-title: 15px;
+  --text-heading: 18px;
+
+  --font-sans: var(--font-sf);
   --font-mono: var(--font-geist-mono);
+  --font-montserrat: var(--font-montserrat-family);
 }
 
-html, body {
+.font-roboto-flex-heading {
+  font-family: var(--font-sf);
+  font-weight: 700;
+}
+
+html,
+body {
   background: transparent;
   margin: 0;
   padding: 0;
@@ -185,6 +258,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+  font-kerning: normal;
+  /* no faux bold or italic when a weight is missing */
+  font-synthesis: none;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -195,7 +272,7 @@ html, body {
 /* Hide scrollbar for IE, Edge and Firefox */
 * {
   -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  scrollbar-width: none; /* Firefox */
   user-select: none;
 }
 
@@ -256,8 +333,12 @@ img {
   -webkit-app-region: no-drag;
 }
 
+/* route change: a short rise and fade on the standard curve (docs/DESIGN.md).
+   No blur: a filter on the page would switch off the glass inside it while
+   the animation runs. Kept pages replay it when Activity shows them again,
+   since leaving display: none restarts CSS animations. */
 .page-transition {
-  animation: page-enter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: page-enter 200ms cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: top center;
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -267,16 +348,42 @@ img {
   width: 100%;
 }
 
+/* kept pages (home, library) get only the animation, no lasting transform,
+   so nothing inside them changes containing block */
+.page-transition-kept {
+  animation: page-enter 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  height: 100%;
+  width: 100%;
+}
+
 @keyframes page-enter {
   from {
     opacity: 0;
     transform: translate3d(0, 6px, 0);
-    filter: blur(2.5px);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
-    filter: blur(0px);
+    transform: translateZ(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition,
+  .page-transition-kept {
+    animation-duration: 1ms;
+  }
+}
+
+.app-shell-enter > * {
+  animation: app-shell-enter 200ms ease-out;
+}
+
+@keyframes app-shell-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -296,21 +403,29 @@ img {
 .apple-glass-action,
 .apple-glass-static,
 .apple-glass-pill-dark {
-  background: var(--glass-pill-bg, linear-gradient(135deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.35) 100%)) !important;
+  background: var(
+    --glass-pill-bg,
+    linear-gradient(135deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.35) 100%)
+  ) !important;
   backdrop-filter: blur(var(--glass-blur, 20px)) saturate(160%) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(160%) !important;
   border: none !important;
   color: #ffffff !important;
   box-shadow: none !important;
-  transition: background 150ms ease, color 150ms ease, border-color 150ms ease !important;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease !important;
 }
-
 
 button.apple-glass-pill:hover,
 button.apple-glass-action:hover,
 .apple-glass-action:hover,
 .apple-glass-pill-dark button:hover {
-  background: var(--glass-pill-bg-hover, linear-gradient(135deg, rgba(0, 0, 0, 0.60) 0%, rgba(0, 0, 0, 0.50) 100%)) !important;
+  background: var(
+    --glass-pill-bg-hover,
+    linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.5) 100%)
+  ) !important;
   color: #ffffff !important;
 }
 
@@ -319,7 +434,9 @@ button.apple-glass-action:hover,
   border: none !important;
   color: #000000 !important;
   box-shadow: none !important;
-  transition: background 150ms ease, opacity 150ms ease !important;
+  transition:
+    background 150ms ease,
+    opacity 150ms ease !important;
 }
 
 .apple-glass-prominent:hover {
@@ -327,9 +444,9 @@ button.apple-glass-action:hover,
   color: #000000 !important;
 }
 
-
 @keyframes lyric-dot {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -348,10 +465,11 @@ button.apple-glass-action:hover,
   transform: scale(var(--line-scale));
   opacity: var(--line-opacity);
   filter: var(--line-filter);
-  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-              filter 0.32s ease,
-              color 0.32s ease;
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.32s ease,
+    color 0.32s ease;
   will-change: transform, opacity, filter;
   cursor: pointer;
 }
@@ -370,7 +488,8 @@ button.apple-glass-action:hover,
 }
 
 @keyframes skeleton-breathe {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.95;
   }
   50% {
@@ -412,7 +531,8 @@ button.apple-glass-action:hover,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-transition {
+  .page-transition,
+  .app-shell-enter > * {
     animation: none;
   }
   .search-popup-enter {
@@ -435,11 +555,51 @@ button.apple-glass-action:hover,
   }
 }
 
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 body[data-edge-to-edge="true"] {
   padding: 0 !important;
 }
 
-/* window controls after minimize: no stale hover highlight (see WindowControls) */
 html[data-hover-reset] [data-window-controls] button:hover {
   background-color: transparent !important;
+}
+
+@property --lyrics-fog-top {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+@property --lyrics-fog-bottom {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+.lyrics-edge-fog {
+  --lyrics-fog-top: 22%;
+  --lyrics-fog-bottom: 26%;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black var(--lyrics-fog-top),
+    black calc(100% - var(--lyrics-fog-bottom)),
+    transparent 100%
+  );
+  transition:
+    --lyrics-fog-top 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    --lyrics-fog-bottom 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lyrics-edge-fog[data-at-top] {
+  --lyrics-fog-top: 0%;
+}
+
+.lyrics-edge-fog[data-at-bottom] {
+  --lyrics-fog-bottom: 0%;
 }

@@ -221,7 +221,7 @@ describe("auth-session token system", () => {
     expect(token).toBe("refreshed_fresh_token");
   });
 
-  it("clears session on 401 refresh failure but preserves session on 500 failure", async () => {
+  it("clears session only when the server says the refresh token is dead", async () => {
     const session: AuthTokens = {
       accessToken: "old_token",
       refreshToken: "rt_1",
@@ -241,14 +241,24 @@ describe("auth-session token system", () => {
     expect(getAuthSession()).not.toBeNull();
     expect(getAuthSession()?.refreshToken).toBe("rt_1");
 
-    // 2. Server 401 error: Session MUST be wiped
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
     }) as any;
 
-    const res401 = await refreshAuthSession();
-    expect(res401).toBeNull();
+    expect(await refreshAuthSession()).toBeNull();
+    expect(getAuthSession()?.refreshToken).toBe("rt_1");
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      clone() {
+        return { json: async () => ({ code: "INVALID_REFRESH_TOKEN" }) };
+      },
+    }) as any;
+
+    expect(await refreshAuthSession()).toBeNull();
     expect(getAuthSession()).toBeNull();
   });
 
@@ -281,7 +291,10 @@ describe("auth-session token system", () => {
     it("a one-off 401 (e.g. a rejected signature) is retried and does not sign out", async () => {
       vi.spyOn(console, "warn").mockImplementation(() => {});
       setAuthSession(base());
-      globalThis.fetch = vi.fn().mockResolvedValueOnce(reject()).mockResolvedValueOnce(okRefresh()) as any;
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(reject())
+        .mockResolvedValueOnce(okRefresh()) as any;
       const res = await refreshAuthSession();
       expect(res?.refreshToken).toBe("rt_2");
       expect(getAuthSession()?.accessToken).toBe("new_token");
@@ -290,7 +303,11 @@ describe("auth-session token system", () => {
 
     it("adopts a token rotated elsewhere instead of signing out", async () => {
       setAuthSession(base());
-      const rotated = { ...base(), accessToken: "other_window_token", refreshToken: "rt_9" };
+      const rotated = {
+        ...base(),
+        accessToken: "other_window_token",
+        refreshToken: "rt_9",
+      };
       globalThis.fetch = vi.fn().mockImplementation(async () => {
         // another window finished a refresh meanwhile
         storageMap.set("liner_auth_session", JSON.stringify(rotated));
@@ -302,20 +319,40 @@ describe("auth-session token system", () => {
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
-    it("signs out only after the retry is rejected too, and logs why", async () => {
+    it("signs out on an expired refresh session, and logs why", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       setAuthSession(base());
-      globalThis.fetch = vi.fn().mockResolvedValue(reject(401, "REFRESH_TOKEN_EXPIRED")) as any;
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(reject(401, "REFRESH_SESSION_EXPIRED")) as any;
       const res = await refreshAuthSession();
       expect(res).toBeNull();
       expect(getAuthSession()).toBeNull();
-      expect(warn.mock.calls.flat().join(" ")).toContain("REFRESH_TOKEN_EXPIRED");
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls.flat().join(" ")).toContain(
+        "REFRESH_SESSION_EXPIRED",
+      );
+    });
+
+    it("keeps the session when signature rejections never clear up", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      setAuthSession(base());
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(reject(401, "SIGNATURE_SKEWED")) as any;
+      expect(await refreshAuthSession()).toBeNull();
+      expect(getAuthSession()?.refreshToken).toBe("rt_1");
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     });
 
     it("keeps the session on server errors", async () => {
       vi.spyOn(console, "warn").mockImplementation(() => {});
       setAuthSession(base());
-      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503, headers: { get: () => null } }) as any;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        headers: { get: () => null },
+      }) as any;
       expect(await refreshAuthSession()).toBeNull();
       expect(getAuthSession()?.refreshToken).toBe("rt_1");
     });

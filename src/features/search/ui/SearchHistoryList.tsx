@@ -41,14 +41,14 @@ export const SearchHistoryList = memo(function SearchHistoryList({
       style={maskStyle}
     >
       <div className="flex items-center justify-between px-[6px] pt-[4px] pb-[10px]">
-        <span className="text-[13px] font-medium text-text-secondary tracking-tight">
+        <span className="text-body font-medium text-text-secondary tracking-tight">
           {t("common.recent_searches")}
         </span>
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={clearHistory}
-          className="text-[12px] text-text-tertiary hover:text-text-primary transition-colors border-none bg-transparent cursor-pointer p-0 select-none"
+          className="text-caption text-text-tertiary hover:text-text-primary transition-colors border-none bg-transparent cursor-pointer p-0 select-none"
         >
           {t("common.clear_recent")}
         </button>
@@ -61,7 +61,7 @@ export const SearchHistoryList = memo(function SearchHistoryList({
               <div
                 key={item.id}
                 onClick={() => onSelectQuery(item.title)}
-                className="group flex items-center w-full min-w-0 rounded-[8px] hover:bg-border-alpha-14 cursor-pointer transition-colors select-none"
+                className="group flex items-center w-full min-w-0 rounded-control hover:bg-border-alpha-14 cursor-pointer transition-colors select-none"
               >
                 <div className="flex flex-1 items-center gap-[12px] min-w-0 pl-[12px] py-[9px]">
                   <span className="shrink-0 text-text-tertiary group-hover:text-text-primary transition-colors">
@@ -71,7 +71,10 @@ export const SearchHistoryList = memo(function SearchHistoryList({
                     {item.title}
                   </span>
                 </div>
-                <RemoveHistoryButton label={t("common.remove")} onRemove={() => removeItem(item.id)} />
+                <RemoveHistoryButton
+                  label={t("common.remove")}
+                  onRemove={() => removeItem(item.id)}
+                />
               </div>
             );
           }
@@ -80,31 +83,33 @@ export const SearchHistoryList = memo(function SearchHistoryList({
           const data = item.itemData ?? item;
 
           return (
-            <div key={item.id} className="group flex items-center w-full min-w-0">
-              <div className="min-w-0 flex-1">
-                <SongCardWithMenu
-                id={item.id}
-                title={item.title}
-                artistId={data?.artistId ?? data?.artist_id}
-                artistList={data?.artistList}
-                artists={item.subtitle || ""}
-                coverUrl={item.coverUrl || ""}
-                explicit={item.explicit}
-                imageShape={isArtist ? "circle" : "square"}
-                duration={item.duration}
-                durationMs={item.durationMs}
-                searchType={item.type}
-                totalTracks={data?.totalTracks ?? data?.total_tracks}
-                onPlay={
-                  item.type === "track"
-                    ? () => onPlayTrack(data)
-                    : () => onNavigateItem(data)
-                }
-                onNavigate={() => onNavigateItem(data)}
-              />
-              </div>
-              <RemoveHistoryButton label={t("common.remove")} onRemove={() => removeItem(item.id)} />
-            </div>
+            <SongCardWithMenu
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              artistId={data?.artistId ?? data?.artist_id}
+              artistList={data?.artistList}
+              artists={item.subtitle || ""}
+              coverUrl={item.coverUrl || ""}
+              explicit={item.explicit}
+              imageShape={isArtist ? "circle" : "square"}
+              duration={item.duration}
+              durationMs={item.durationMs}
+              searchType={item.type}
+              totalTracks={data?.totalTracks ?? data?.total_tracks}
+              onPlay={
+                item.type === "track"
+                  ? () => onPlayTrack(data)
+                  : () => onNavigateItem(data)
+              }
+              onNavigate={() => onNavigateItem(data)}
+              trailingAction={
+                <RemoveHistoryButton
+                  label={t("common.remove")}
+                  onRemove={() => removeItem(item.id)}
+                />
+              }
+            />
           );
         })}
       </div>
@@ -112,7 +117,13 @@ export const SearchHistoryList = memo(function SearchHistoryList({
   );
 });
 
-function RemoveHistoryButton({ label, onRemove }: { label: string; onRemove: () => void }) {
+function RemoveHistoryButton({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
   return (
     <button
       type="button"

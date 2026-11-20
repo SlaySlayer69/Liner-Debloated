@@ -7,6 +7,7 @@ import { useToast } from "@/shared/ui";
 import { useTranslation } from "@/languages";
 
 import type { TrackArtist } from "@/shared/types";
+import { isLocalTrackId } from "@/shared/media/local";
 
 export interface SongCardWithMenuProps {
   id?: string;
@@ -23,6 +24,7 @@ export interface SongCardWithMenuProps {
   durationMs?: number;
   releaseDate?: string;
   explicit?: boolean;
+  hideArtists?: boolean;
   imageShape?: "square" | "circle";
   trackNumber?: number;
   repostedBy?: string;
@@ -37,6 +39,10 @@ export interface SongCardWithMenuProps {
   showReorderHandle?: boolean;
   onGrabStart?: (e: React.PointerEvent<HTMLDivElement>) => void;
   highlight?: string;
+  trailingAction?: React.ReactNode;
+  /** play queue rows: adds "Remove from queue" to the card menu */
+  onRemoveFromQueue?: () => void;
+  onRemoveFromDevice?: () => void;
 }
 
 function SongCardWithMenu({
@@ -53,6 +59,7 @@ function SongCardWithMenu({
   durationMs,
   releaseDate,
   explicit,
+  hideArtists,
   imageShape,
   trackNumber,
   repostedBy,
@@ -67,6 +74,9 @@ function SongCardWithMenu({
   showReorderHandle,
   onGrabStart,
   highlight,
+  trailingAction,
+  onRemoveFromQueue,
+  onRemoveFromDevice,
 }: SongCardWithMenuProps) {
   const resolvedDurationMs = useMemo(() => {
     if (durationMs !== undefined) return durationMs;
@@ -93,6 +103,8 @@ function SongCardWithMenu({
     playlistId,
     playlistItemId,
     playlistTitle,
+    onRemoveFromQueue,
+    onRemoveFromDevice,
   });
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -160,6 +172,7 @@ function SongCardWithMenu({
       artists={artists}
       artistId={artistId}
       artistList={artistList}
+      artistsClickable={!isLocalTrackId(id)}
       coverUrl={coverUrl}
       className={className}
       onPlay={onPlay}
@@ -167,6 +180,7 @@ function SongCardWithMenu({
       duration={duration}
       releaseDate={releaseDate}
       explicit={explicit}
+      hideArtists={hideArtists}
       imageShape={imageShape}
       trackNumber={trackNumber}
       repostedBy={repostedBy}
@@ -180,6 +194,7 @@ function SongCardWithMenu({
       icon={icon}
       showReorderHandle={showReorderHandle}
       onGrabStart={onGrabStart}
+      trailingAction={trailingAction}
     />
   );
 }

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, toClientTrack } from "@/shared/api";
 import type { Track } from "@/shared/types";
-import { interleave, pickSeeds } from "@/features/player/engine/collectionRadio";
+import {
+  interleave,
+  pickSeeds,
+} from "@/features/player/engine/collectionRadio";
 
 export const SUGGESTION_COUNT = 10;
 const SEED_COUNT = 3;
@@ -10,7 +13,8 @@ const SEED_COUNT = 3;
 const cache = new Map<string, Track[]>();
 
 function randomWaveId(): string {
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+  return typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
     : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 }
@@ -27,7 +31,9 @@ export async function fetchPlaylistSuggestions(
   if (tracks.length === 0) return [];
   const waveId = randomWaveId();
   const results = await Promise.allSettled(
-    pickSeeds(tracks, SEED_COUNT, random).map((seed) => api.getRadio(seed.id, { k: 15, wave_id: waveId })),
+    pickSeeds(tracks, SEED_COUNT, random).map((seed) =>
+      api.getRadio(seed.id, { k: 15, wave_id: waveId }),
+    ),
   );
   const lists = results.map((result) =>
     result.status === "fulfilled" ? result.value.items.map(toClientTrack) : [],
@@ -47,8 +53,13 @@ export async function fetchPlaylistSuggestions(
   return out;
 }
 
-export function usePlaylistSuggestions(playlistId: string | null, tracks: readonly Track[]) {
-  const [items, setItems] = useState<Track[]>(() => (playlistId ? cache.get(playlistId) ?? [] : []));
+export function usePlaylistSuggestions(
+  playlistId: string | null,
+  tracks: readonly Track[],
+) {
+  const [items, setItems] = useState<Track[]>(() =>
+    playlistId ? (cache.get(playlistId) ?? []) : [],
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const tracksRef = useRef(tracks);
@@ -65,7 +76,8 @@ export function usePlaylistSuggestions(playlistId: string | null, tracks: readon
       try {
         let next = await fetchPlaylistSuggestions(tracksRef.current, exclude);
         // a small catalog may have nothing new left: fall back to allowing repeats
-        if (next.length === 0 && exclude.length > 0) next = await fetchPlaylistSuggestions(tracksRef.current);
+        if (next.length === 0 && exclude.length > 0)
+          next = await fetchPlaylistSuggestions(tracksRef.current);
         if (seq !== loadSeq.current) return;
         cache.set(playlistId, next);
         setItems(next);

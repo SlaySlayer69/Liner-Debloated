@@ -19,14 +19,26 @@ export async function playCollectionRadio(
     const tracks =
       options.tracks && options.tracks.length > 0
         ? options.tracks
-        : await loadCollectionTracks(source.kind, source.id, options.ownedPlaylist);
+        : await loadCollectionTracks(
+            source.kind,
+            source.id,
+            options.ownedPlaylist,
+          );
     if (!playerEngine.startCollectionRadio(source, tracks)) {
-      showToast(t("common.radio_empty"), "error", { description: source.title });
+      showToast(t("common.radio_empty"), "error", {
+        description: source.title,
+      });
       return;
     }
-    showToast(t("common.radio_started"), "checkmark", { description: source.title });
+    showToast(t("common.radio_started"), "checkmark", {
+      description: source.title,
+    });
   } catch (error) {
-    log("yellow", "radio", `collection radio failed: ${error instanceof Error ? error.message : String(error)}`);
+    log(
+      "yellow",
+      "radio",
+      `collection radio failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     showToast(t("common.radio_failed"), "error", { description: source.title });
   }
 }

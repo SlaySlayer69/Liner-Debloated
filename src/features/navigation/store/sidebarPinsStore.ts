@@ -17,11 +17,17 @@ export function sidebarPinKey(kind: SidebarPinKind, id: string): string {
 }
 
 /** route that opens a pinned item; user playlists live in the library, catalog ones in collections */
-export function sidebarPinHref(kind: SidebarPinKind, id: string, ownedPlaylist = false): string {
+export function sidebarPinHref(
+  kind: SidebarPinKind,
+  id: string,
+  ownedPlaylist = false,
+): string {
   const encoded = encodeURIComponent(id);
   if (kind === "artist") return `/artist?id=${encoded}`;
   if (kind === "album") return `/collection?type=album&id=${encoded}`;
-  return ownedPlaylist ? `/library/playlist?id=${encoded}` : `/collection?type=playlist&id=${encoded}`;
+  return ownedPlaylist
+    ? `/library/playlist?id=${encoded}`
+    : `/collection?type=playlist&id=${encoded}`;
 }
 
 interface SidebarPinsState {
@@ -39,7 +45,9 @@ export const useSidebarPinsStore = create<SidebarPinsState>()(
 
       pin: (item) => {
         const key = sidebarPinKey(item.kind, item.id);
-        const existing = get().pins.findIndex((p) => sidebarPinKey(p.kind, p.id) === key);
+        const existing = get().pins.findIndex(
+          (p) => sidebarPinKey(p.kind, p.id) === key,
+        );
         if (existing >= 0) {
           // refresh title / artwork in place, keep the user's order
           const next = get().pins.slice();
@@ -52,7 +60,9 @@ export const useSidebarPinsStore = create<SidebarPinsState>()(
 
       unpin: (kind, id) => {
         const key = sidebarPinKey(kind, id);
-        set({ pins: get().pins.filter((p) => sidebarPinKey(p.kind, p.id) !== key) });
+        set({
+          pins: get().pins.filter((p) => sidebarPinKey(p.kind, p.id) !== key),
+        });
       },
 
       toggle: (item) => {
@@ -66,7 +76,13 @@ export const useSidebarPinsStore = create<SidebarPinsState>()(
 
       move: (fromIndex, toIndex) => {
         const pins = get().pins.slice();
-        if (fromIndex < 0 || fromIndex >= pins.length || toIndex < 0 || toIndex >= pins.length) return;
+        if (
+          fromIndex < 0 ||
+          fromIndex >= pins.length ||
+          toIndex < 0 ||
+          toIndex >= pins.length
+        )
+          return;
         const [moved] = pins.splice(fromIndex, 1);
         pins.splice(toIndex, 0, moved);
         set({ pins });
@@ -80,7 +96,10 @@ export const useSidebarPinsStore = create<SidebarPinsState>()(
   ),
 );
 
-export function useIsSidebarPinned(kind: SidebarPinKind | undefined, id: string | undefined): boolean {
+export function useIsSidebarPinned(
+  kind: SidebarPinKind | undefined,
+  id: string | undefined,
+): boolean {
   return useSidebarPinsStore((s) =>
     Boolean(kind && id && s.pins.some((p) => p.kind === kind && p.id === id)),
   );

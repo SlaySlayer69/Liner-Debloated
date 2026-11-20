@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { api } from "@/shared/api";
 import { statsDb } from "./store/statsDb";
-import { ensureHistoryBackfill, historyItemToRecord, recordListen } from "./recorder";
+import {
+  ensureHistoryBackfill,
+  historyItemToRecord,
+  recordListen,
+} from "./recorder";
 
 const session = { user: { id: "u1" } };
 
@@ -25,7 +29,12 @@ function historyItem(id: string, listenedAt: string) {
     id,
     playbackSessionId: "p",
     listeningSessionId: "l",
-    track: { id: `track-${id}`, title: `Song ${id}`, artists: [{ id: "a1", name: "Artist" }], durationMs: 180_000 },
+    track: {
+      id: `track-${id}`,
+      title: `Song ${id}`,
+      artists: [{ id: "a1", name: "Artist" }],
+      durationMs: 180_000,
+    },
     playedDurationMs: 120_000,
     completionRate: 0.66,
     completed: false,
@@ -70,7 +79,10 @@ describe("stats recorder", () => {
       owner: "u1",
       ts: 5_000,
       trackId: "t1",
-      artists: [{ id: "a", name: "A" }, { id: undefined, name: "B" }],
+      artists: [
+        { id: "a", name: "A" },
+        { id: undefined, name: "B" },
+      ],
       albumId: "al",
       playedMs: 45_001,
       completed: false,
@@ -79,14 +91,19 @@ describe("stats recorder", () => {
   });
 
   it("maps server history items to records", () => {
-    const record = historyItemToRecord(historyItem("h1", "2026-10-01T10:00:00.000Z") as any, "u1");
+    const record = historyItemToRecord(
+      historyItem("h1", "2026-10-01T10:00:00.000Z") as any,
+      "u1",
+    );
     expect(record).toMatchObject({
       id: "srv:h1",
       ts: Date.parse("2026-10-01T10:00:00.000Z"),
       trackId: "track-h1",
       playedMs: 120_000,
     });
-    expect(historyItemToRecord({ ...historyItem("h2", "not a date") } as any, "u1")).toBeNull();
+    expect(
+      historyItemToRecord({ ...historyItem("h2", "not a date") } as any, "u1"),
+    ).toBeNull();
   });
 
   it("imports only history from before local recording started, once", async () => {
@@ -94,16 +111,24 @@ describe("stats recorder", () => {
     localStorage.setItem("liner_stats_epoch_v1:u1", String(epoch));
     vi.mocked(api.getHistory)
       .mockResolvedValueOnce({
-        items: [historyItem("new", "2026-10-12T00:00:00.000Z"), historyItem("old1", "2026-10-05T00:00:00.000Z")],
+        items: [
+          historyItem("new", "2026-10-12T00:00:00.000Z"),
+          historyItem("old1", "2026-10-05T00:00:00.000Z"),
+        ],
         nextCursor: "c2",
       } as any)
-      .mockResolvedValueOnce({ items: [historyItem("old2", "2026-09-01T00:00:00.000Z")], nextCursor: null } as any);
+      .mockResolvedValueOnce({
+        items: [historyItem("old2", "2026-09-01T00:00:00.000Z")],
+        nextCursor: null,
+      } as any);
 
     await ensureHistoryBackfill("u1");
 
     expect(api.getHistory).toHaveBeenNthCalledWith(1, undefined, 100);
     expect(api.getHistory).toHaveBeenNthCalledWith(2, "c2", 100);
-    const ids = (await statsDb.getRange("u1", 0, Number.MAX_SAFE_INTEGER)).map((r) => r.id);
+    const ids = (await statsDb.getRange("u1", 0, Number.MAX_SAFE_INTEGER)).map(
+      (r) => r.id,
+    );
     expect(ids).toEqual(["srv:old2", "srv:old1"]);
 
     await ensureHistoryBackfill("u1");
@@ -113,7 +138,10 @@ describe("stats recorder", () => {
   it("retries the import on the next visit after a failure", async () => {
     vi.mocked(api.getHistory).mockRejectedValueOnce(new Error("offline"));
     await ensureHistoryBackfill("u1");
-    vi.mocked(api.getHistory).mockResolvedValueOnce({ items: [], nextCursor: null } as any);
+    vi.mocked(api.getHistory).mockResolvedValueOnce({
+      items: [],
+      nextCursor: null,
+    } as any);
     await ensureHistoryBackfill("u1");
     expect(api.getHistory).toHaveBeenCalledTimes(2);
   });

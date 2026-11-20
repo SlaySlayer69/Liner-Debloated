@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, type ReactNode } from "react";
 import { PlaylistFill } from "@mingcute/react";
 import DropdownMenu from "@/shared/ui/DropdownMenu";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import type { PlaylistVariant } from "../types";
 import CoverImage from "@/features/covers/ui/CoverImage";
+import { cn } from "@/shared/lib";
 
 export interface PlaylistCardProps {
   title: string;
@@ -13,12 +14,23 @@ export interface PlaylistCardProps {
   coverUrls?: string[];
   variant?: PlaylistVariant;
   href?: string;
+  linkState?: unknown;
+  onPointerDown?: () => void;
   onClick?: () => void;
+  badge?: ReactNode;
   className?: string;
   menuItems?: DropdownMenuItem[];
 }
 
-function CoverCollage({ urls, title }: { urls: string[]; title: string }) {
+export function CoverCollage({
+  urls,
+  title,
+  className,
+}: {
+  urls: string[];
+  title: string;
+  className?: string;
+}) {
   const count = Math.min(urls.length, 4);
 
   if (count === 1) {
@@ -38,7 +50,12 @@ function CoverCollage({ urls, title }: { urls: string[]; title: string }) {
   const cells = urls.slice(0, count);
 
   return (
-    <div className="absolute inset-0 grid grid-cols-2 gap-[1.5px] bg-border-alpha-8">
+    <div
+      className={cn(
+        "absolute inset-0 grid grid-cols-2 gap-[1.5px] bg-border-alpha-8",
+        className,
+      )}
+    >
       {cells.map((url, i) => {
         const spanFull = count === 3 && i === 0;
         return (
@@ -69,7 +86,10 @@ function PlaylistCard({
   coverUrls,
   variant = "playlist",
   href,
+  linkState,
+  onPointerDown,
   onClick,
+  badge,
   className = "",
   menuItems,
 }: PlaylistCardProps) {
@@ -80,11 +100,7 @@ function PlaylistCard({
   } | null>(null);
 
   const effectiveUrls =
-    coverUrls && coverUrls.length > 0
-      ? coverUrls
-      : imageUrl
-        ? [imageUrl]
-        : [];
+    coverUrls && coverUrls.length > 0 ? coverUrls : imageUrl ? [imageUrl] : [];
   const hasCollage = effectiveUrls.length >= 2;
 
   const handleContextMenu = useCallback(
@@ -107,7 +123,7 @@ function PlaylistCard({
     <>
       <div
         className={`relative aspect-square w-full overflow-hidden bg-border-alpha-14 ${
-          variant === "artist" ? "rounded-full" : "rounded-md"
+          variant === "artist" ? "rounded-full" : "rounded-control"
         } flex items-center justify-center`}
       >
         {effectiveUrls.length > 0 ? (
@@ -139,11 +155,12 @@ function PlaylistCard({
           variant === "artist" ? "items-center text-center" : ""
         }`}
       >
-        <span className="truncate text-[14px] font-[500] text-text-primary">
+        <span className="truncate text-label font-[500] text-text-primary">
           {title}
         </span>
-        <span className="truncate text-[13px] text-text-tertiary">
-          {author}
+        <span className="flex min-w-0 items-center gap-[5px] text-body text-text-tertiary">
+          {badge}
+          <span className="truncate">{author}</span>
         </span>
       </div>
     </>
@@ -165,6 +182,8 @@ function PlaylistCard({
       <div onContextMenu={handleContextMenu}>
         <Link
           to={href}
+          state={linkState}
+          onPointerDown={onPointerDown}
           className={`group flex flex-col gap-[8px] no-underline ${className}`}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}

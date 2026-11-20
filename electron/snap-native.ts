@@ -8,15 +8,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import os from "node:os";
-import { screen, type BrowserWindow, type Display, type Rectangle } from "electron";
-import { cubicBezier, lerpEdges, toEdges, type Edges } from "./window-drag.js";
+import {
+  screen,
+  type BrowserWindow,
+  type Display,
+  type Rectangle,
+} from "electron";
+import { cubicBezier, lerpEdges, type Edges } from "./window-drag.js";
 
 interface SnapPreviewAddon {
   init(): boolean;
   hasBackdrop(): boolean;
   placeOnCursorMonitor(): [number, number, number, number] | undefined;
   windowRect(hwnd: Buffer): Edges | undefined;
-  placeOnWindowMonitor(hwnd: Buffer): [number, number, number, number] | undefined;
+  placeOnWindowMonitor(
+    hwnd: Buffer,
+  ): [number, number, number, number] | undefined;
   beginMorph(hwnd: Buffer, from?: Edges, opacity?: number): boolean;
   runMorph(
     from: Edges,
@@ -30,6 +37,10 @@ interface SnapPreviewAddon {
   revealMorph(): void;
   endMorph(): void;
   cloak(hwnd: Buffer, on: boolean): void;
+  setTransitionsDisabled?(hwnd: Buffer, disabled: boolean): void;
+  minimizeKeepingPreview?(hwnd: Buffer): void;
+  armRestoreTrap?(hwnd: Buffer, armed: boolean): void;
+  takeRestoredCloaked?(): boolean;
   transform(
     from: Edges,
     to: Edges,
@@ -46,7 +57,12 @@ interface SnapPreviewAddon {
   setStyle(argbTint: number, radiusPx: number): void;
   show(afterHwnd: Buffer | null): void;
   hide(): void;
-  animate(from: Edges, to: Edges, ms: number, bezier: [number, number, number, number]): void;
+  animate(
+    from: Edges,
+    to: Edges,
+    ms: number,
+    bezier: [number, number, number, number],
+  ): void;
   setTarget(to: Edges): void;
   destroy(): void;
 }
@@ -54,9 +70,20 @@ interface SnapPreviewAddon {
 /** the built add-on, or null (not built, not windows, or it failed to load) */
 export function loadSnapPreviewAddon(appRoot: string): SnapPreviewAddon | null {
   if (!isWindows11()) return null;
-  const candidates = [path.join(appRoot, "native", "snap-preview", "build", "Release", "snap_preview.node")].map((p) =>
+  const candidates = [
+    path.join(
+      appRoot,
+      "native",
+      "snap-preview",
+      "build",
+      "Release",
+      "snap_preview.node",
+    ),
+  ].map((p) =>
     // packaged: native files are unpacked next to the asar
-    p.includes(`app.asar${path.sep}`) ? p.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`) : p,
+    p.includes(`app.asar${path.sep}`)
+      ? p.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`)
+      : p,
   );
   const require = createRequire(import.meta.url);
   for (const file of candidates) {
@@ -82,9 +109,15 @@ export function loadSnapPreviewAddon(appRoot: string): SnapPreviewAddon | null {
         "transform",
         "endTransform",
       ] as const;
-      const missing = required.filter((name) => typeof (addon as unknown as Record<string, unknown>)?.[name] !== "function");
+      const missing = required.filter(
+        (name) =>
+          typeof (addon as unknown as Record<string, unknown>)?.[name] !==
+          "function",
+      );
       if (missing.length === 0) return addon;
-      console.warn(`[snap-preview] add-on is outdated (missing ${missing.join(", ")}): run pnpm native:build`);
+      console.warn(
+        `[snap-preview] add-on is outdated (missing ${missing.join(", ")}): run pnpm native:build`,
+      );
     } catch (err) {
       console.warn("[snap-preview] native add-on failed to load:", err);
     }
@@ -94,7 +127,10 @@ export function loadSnapPreviewAddon(appRoot: string): SnapPreviewAddon | null {
 
 /** windows 11 is build 22000+ (os.release() is "10.0.<build>") */
 export function isWindows11(): boolean {
-  return process.platform === "win32" && Number(os.release().split(".")[2] ?? 0) >= 22000;
+  return (
+    process.platform === "win32" &&
+    Number(os.release().split(".")[2] ?? 0) >= 22000
+  );
 }
 
 type Bezier = [number, number, number, number];
@@ -107,6 +143,7 @@ const DRAG_OUT_MS = 200; // dragging out of maximize: a touch quicker, the windo
 const PAINT_WAIT_MS = 150; // longest we wait for the app to paint at its new size
 // window <-> overlay: a material-style container transform
 const TO_OVERLAY_MS = 190; // into the pill: quick
+const TRANSITIONS_RESTORE_MS = 400;
 const FROM_OVERLAY_MS = 230; // back out: expanding reads better a touch slower
 const EMPHASIZED: Bezier = [0.2, 0, 0, 1]; // quick departure, long gentle settle
 const CONTAINER_TINT = 0xf0141416; // the app's dark surface, over the live blur
@@ -115,10 +152,16 @@ const WINDOW_RADIUS_DIP = 12; // the app frame's corners
 /** resolves once the window's renderer has produced a frame (or after a timeout) */
 function afterPaint(win: BrowserWindow): Promise<void> {
   const painted = win.webContents
-    .executeJavaScript("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))", false)
+    .executeJavaScript(
+      "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))",
+      false,
+    )
     .then(() => undefined)
     .catch(() => undefined);
-  return Promise.race([painted, new Promise<void>((r) => setTimeout(r, PAINT_WAIT_MS))]);
+  return Promise.race([
+    painted,
+    new Promise<void>((r) => setTimeout(r, PAINT_WAIT_MS)),
+  ]);
 }
 
 export interface NativeSnapOptions {
@@ -140,7 +183,13 @@ export class NativeSnapPreview {
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private morphing = false; // a morph is landing (followMorph keeps it on the window)
   // the running animation, mirrored here so a turnaround starts exactly where it is
-  private anim: { from: Edges; to: Edges; start: number; ms: number; ease: (t: number) => number } | null = null;
+  private anim: {
+    from: Edges;
+    to: Edges;
+    start: number;
+    ms: number;
+    ease: (t: number) => number;
+  } | null = null;
 
   private constructor(
     private readonly addon: SnapPreviewAddon,
@@ -149,15 +198,24 @@ export class NativeSnapPreview {
     private readonly blur: boolean,
   ) {}
 
-  static create(addon: SnapPreviewAddon, getMain: () => BrowserWindow | null, opts: NativeSnapOptions) {
+  static create(
+    addon: SnapPreviewAddon,
+    getMain: () => BrowserWindow | null,
+    opts: NativeSnapOptions,
+  ) {
     try {
       if (!addon.init()) {
-        const why = (addon as { lastError?: () => string }).lastError?.() ?? "unknown";
-        console.warn(`[snap-preview] native init failed: ${why} (using the plain preview)`);
+        const why =
+          (addon as { lastError?: () => string }).lastError?.() ?? "unknown";
+        console.warn(
+          `[snap-preview] native init failed: ${why} (using the plain preview)`,
+        );
         return null;
       }
       const blur = addon.hasBackdrop();
-      console.log(`[snap-preview] native compositor preview ready (live blur: ${blur ? "yes" : "no"})`);
+      console.log(
+        `[snap-preview] native compositor preview ready (live blur: ${blur ? "yes" : "no"})`,
+      );
       return new NativeSnapPreview(addon, getMain, opts, blur);
     } catch (err) {
       console.warn("[snap-preview] native init failed:", err);
@@ -173,7 +231,11 @@ export class NativeSnapPreview {
     if (!r) return null;
     const w = r[2] - r[0];
     const h = r[3] - r[1];
-    const i = Math.min(Math.round(this.opts.tuckInsetDip * this.scale), Math.floor(w / 4), Math.floor(h / 4));
+    const i = Math.min(
+      Math.round(this.opts.tuckInsetDip * this.scale),
+      Math.floor(w / 4),
+      Math.floor(h / 4),
+    );
     const { x, y } = this.area;
     return [r[0] - x + i, r[1] - y + i, r[2] - x - i, r[3] - y - i];
   }
@@ -193,7 +255,13 @@ export class NativeSnapPreview {
 
   private run(from: Edges, to: Edges, ms: number, bezier: Bezier) {
     this.addon.animate(from, to, ms, bezier);
-    this.anim = { from, to, start: performance.now(), ms, ease: cubicBezier(...bezier) };
+    this.anim = {
+      from,
+      to,
+      start: performance.now(),
+      ms,
+      ease: cubicBezier(...bezier),
+    };
   }
 
   private clearHide() {
@@ -208,7 +276,10 @@ export class NativeSnapPreview {
     if (!a) return;
     this.area = { x: a[0], y: a[1], w: a[2], h: a[3] };
     this.scale = display.scaleFactor || 1;
-    this.addon.setStyle(this.blur ? this.opts.tint : this.opts.tintNoBlur, Math.round(this.opts.radiusDip * this.scale));
+    this.addon.setStyle(
+      this.blur ? this.opts.tint : this.opts.tintNoBlur,
+      Math.round(this.opts.radiusDip * this.scale),
+    );
   }
 
   /** prime once in the background: the compositor sets up its resources now */
@@ -239,7 +310,9 @@ export class NativeSnapPreview {
     // the clip is set (behind the app) before the window shows, so no frame flashes
     this.run(from, to, this.opts.growMs, GROW_EASE);
     const win = this.getMain();
-    this.addon.show(win && !win.isDestroyed() ? win.getNativeWindowHandle() : null);
+    this.addon.show(
+      win && !win.isDestroyed() ? win.getNativeWindowHandle() : null,
+    );
     this.visible = true;
   }
 
@@ -254,7 +327,10 @@ export class NativeSnapPreview {
       return;
     }
     this.run(from, to, this.opts.collapseMs, COLLAPSE_EASE);
-    this.hideTimer = setTimeout(() => this.hideNow(), this.opts.collapseMs + 30);
+    this.hideTimer = setTimeout(
+      () => this.hideNow(),
+      this.opts.collapseMs + 30,
+    );
   }
 
   /** while collapsing: aim at the window's live position */
@@ -344,7 +420,12 @@ export class NativeSnapPreview {
     const from = this.addon.windowRect(hwnd);
     const first = target();
     this.clearHide();
-    if (!from || !first || !this.surfaceFor(hwnd) || !this.addon.beginMorph(hwnd)) {
+    if (
+      !from ||
+      !first ||
+      !this.surfaceFor(hwnd) ||
+      !this.addon.beginMorph(hwnd)
+    ) {
       resize();
       return;
     }
@@ -383,7 +464,10 @@ export class NativeSnapPreview {
   }
 
   private containerStyle() {
-    this.addon.setStyle(this.blur ? CONTAINER_TINT : 0xf8141416, Math.round(WINDOW_RADIUS_DIP * this.scale));
+    this.addon.setStyle(
+      this.blur ? CONTAINER_TINT : 0xf8141416,
+      Math.round(WINDOW_RADIUS_DIP * this.scale),
+    );
   }
 
   /**
@@ -393,7 +477,9 @@ export class NativeSnapPreview {
    * revealed exactly where the container lands. then the (hidden) window minimizes.
    */
   async toOverlay(
-    openOverlay: (beforeShow: (win: BrowserWindow) => void) => Promise<BrowserWindow | null>,
+    openOverlay: (
+      beforeShow: (win: BrowserWindow) => void,
+    ) => Promise<BrowserWindow | null>,
     minimize: () => void,
   ) {
     const win = this.getMain();
@@ -436,15 +522,40 @@ export class NativeSnapPreview {
     }
     this.morphing = true;
     this.hideTimer = setTimeout(() => {
-      // the overlay is revealed by the add-on; the window is hidden: minimize it unseen
       try {
-        minimize();
+        this.minimizeKeepingPreview(hwnd, minimize);
       } finally {
-        setTimeout(() => this.addon.cloak(hwnd, false), 150);
-        this.addon.cloak(ovHwnd, false); // in case the add-on didn't get to it
+        this.addon.cloak(ovHwnd, false);
         this.finishMorph(60);
       }
     }, TO_OVERLAY_MS + 40);
+  }
+
+  private minimizeKeepingPreview(hwnd: Buffer, minimize: () => void) {
+    const setTransitionsDisabled = this.addon.setTransitionsDisabled?.bind(
+      this.addon,
+    );
+    if (this.addon.minimizeKeepingPreview && setTransitionsDisabled) {
+      this.addon.minimizeKeepingPreview(hwnd);
+      this.addon.armRestoreTrap?.(hwnd, true);
+      setTimeout(
+        () => setTransitionsDisabled(hwnd, false),
+        TRANSITIONS_RESTORE_MS,
+      );
+      return;
+    }
+    if (!setTransitionsDisabled) {
+      minimize();
+      setTimeout(() => this.addon.cloak(hwnd, false), 150);
+      return;
+    }
+    setTransitionsDisabled(hwnd, true);
+    this.addon.cloak(hwnd, false);
+    minimize();
+    setTimeout(
+      () => setTransitionsDisabled(hwnd, false),
+      TRANSITIONS_RESTORE_MS,
+    );
   }
 
   /**
@@ -452,19 +563,47 @@ export class NativeSnapPreview {
    * restored hidden and painted first; the pill swells into it, the overlay content
    * fades out early, the app fades in late, and the window is revealed where it lands.
    */
-  async fromOverlay(overlay: BrowserWindow | null, restore: () => void, closeOverlay: () => void) {
+  takeRestoredCloaked(): boolean {
+    return this.addon.takeRestoredCloaked?.() ?? false;
+  }
+
+  disarmRestoreTrap() {
     const win = this.getMain();
-    if (!win || win.isDestroyed() || !overlay || overlay.isDestroyed() || !overlay.isVisible()) {
-      restore();
+    if (win && !win.isDestroyed())
+      this.addon.armRestoreTrap?.(win.getNativeWindowHandle(), false);
+  }
+
+  async fromOverlay(
+    overlay: BrowserWindow | null,
+    restore: () => void,
+    closeOverlay: () => void,
+    alreadyRestored = false,
+  ) {
+    const win = this.getMain();
+    const uncloakedRestore = () => {
+      if (!alreadyRestored) return restore();
+      if (win && !win.isDestroyed())
+        this.addon.cloak(win.getNativeWindowHandle(), false);
+      closeOverlay();
+    };
+    if (
+      !win ||
+      win.isDestroyed() ||
+      !overlay ||
+      overlay.isDestroyed() ||
+      !overlay.isVisible()
+    ) {
+      uncloakedRestore();
       return;
     }
     const hwnd = win.getNativeWindowHandle();
     const ovHwnd = overlay.getNativeWindowHandle();
     const from = this.addon.windowRect(ovHwnd);
-    if (!from) return restore();
+    if (!from) return uncloakedRestore();
+    this.addon.armRestoreTrap?.(hwnd, false);
     this.clearHide();
     this.addon.cloak(hwnd, true);
-    restore();
+    if (!alreadyRestored) restore();
     await afterPaint(win);
     const to = this.addon.windowRect(hwnd);
     if (!to || !this.surfaceOnTop(hwnd)) {
@@ -508,7 +647,10 @@ export class NativeSnapPreview {
 
   private toPx(rectDip: Rectangle): Edges {
     const win = this.getMain();
-    const px = screen.dipToScreenRect(win && !win.isDestroyed() ? win : null, rectDip);
+    const px = screen.dipToScreenRect(
+      win && !win.isDestroyed() ? win : null,
+      rectDip,
+    );
     return [px.x, px.y, px.x + px.width, px.y + px.height];
   }
 

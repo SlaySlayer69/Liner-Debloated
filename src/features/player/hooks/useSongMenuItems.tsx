@@ -8,21 +8,38 @@ import {
   LuTrash2,
   LuFolderPlus,
   LuInfo,
+  LuEraser,
 } from "react-icons/lu";
+import { ShareForwardLine } from "@mingcute/react";
 import type { DropdownMenuItem } from "@/shared/ui/DropdownMenu";
 import { playerEngine } from "../engine/playerEngine";
 import { playCollectionRadio } from "../engine/playCollectionRadio";
 import {
   usePlaylistsList,
-  useLikeTrack,
-  useUnlikeTrack,
+  useToggleTrackLike,
   useIsTrackLiked,
   useModalStore,
 } from "@/features/library";
 import { useTranslation } from "@/languages";
 import { showToast } from "@/shared/ui";
 import { useSidebarPinMenuItem } from "@/features/navigation/hooks/useSidebarPinMenuItem";
-import { sidebarPinHref, type SidebarPinKind } from "@/features/navigation/store/sidebarPinsStore";
+import {
+  sidebarPinHref,
+  type SidebarPinKind,
+} from "@/features/navigation/store/sidebarPinsStore";
+import { buildShareUrl } from "@/shared/utils/share";
+import { isLocalTrackId } from "@/shared/media/local";
+import { useIsTrackCached } from "@/features/library/cached/hooks/useIsTrackCached";
+import { removeTrackFromCache } from "@/shared/utils/cacheManager";
+
+const CLOUD_ONLY_ITEMS = new Set([
+  "start-radio",
+  "like-track",
+  "unlike-track",
+  "add-to-playlist",
+  "remove-from-playlist",
+  "share",
+]);
 
 export interface SongMenuContext {
   id?: string;
@@ -36,6 +53,9 @@ export interface SongMenuContext {
   playlistId?: string;
   playlistItemId?: string;
   playlistTitle?: string;
+  /** play queue rows: adds "Remove from queue" (the queue animates the row out) */
+  onRemoveFromQueue?: () => void;
+  onRemoveFromDevice?: () => void;
 }
 
 export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
@@ -52,17 +72,22 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     playlistId,
     playlistItemId,
     playlistTitle,
+    onRemoveFromQueue,
+    onRemoveFromDevice,
   } = ctx;
 
   const { data: playlistsData } = usePlaylistsList();
 
-  const likeMutation = useLikeTrack();
-  const unlikeMutation = useUnlikeTrack();
+  const toggleLike = useToggleTrackLike();
 
   const liked = useIsTrackLiked(id);
 
   const pinKind: SidebarPinKind | null =
-    searchType === "album" || searchType === "artist" || searchType === "playlist" ? searchType : null;
+    searchType === "album" ||
+    searchType === "artist" ||
+    searchType === "playlist"
+      ? searchType
+      : null;
   const pinItem = useSidebarPinMenuItem(
     pinKind && id
       ? {
@@ -76,14 +101,34 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
       : null,
   );
 
-  const handleLike = useCallback(async () => {
+  const isTrack = searchType === "track" || !searchType;
+  const cached = useIsTrackCached(isTrack ? id : undefined);
+
+  const handleRemoveFromCache = useCallback(() => {
     if (!id) return;
-    if (liked) {
-      unlikeMutation.mutate(id);
-    } else {
-      likeMutation.mutate(id);
+    void removeTrackFromCache(id).then(() => {
+      showToast(t("common.removed_from_cache"), "checkmark", {
+        description: artists ? `${title} — ${artists}` : title,
+      });
+    });
+  }, [id, title, artists, t]);
+
+  const handleLike = useCallback(() => {
+    if (!id) return;
+    toggleLike(id);
+  }, [id, toggleLike]);
+
+  const handleShare = useCallback(() => {
+    if (!id) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      const type =
+        (searchType as "track" | "album" | "artist" | "playlist") || "track";
+      void navigator.clipboard.writeText(buildShareUrl(type, id));
+      showToast(t("common.link_copied"), "checkmark", {
+        description: artists ? `${title} — ${artists}` : title,
+      });
     }
-  }, [id, liked, likeMutation, unlikeMutation]);
+  }, [id, searchType, title, artists, t]);
 
   const buildMenu = useCallback((): DropdownMenuItem[] => {
     const isTrack = searchType === "track" || !searchType;
@@ -93,7 +138,9 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
       icon: <LuInfo size={15} />,
       onClick: () => {
         if (!id) return;
-        useModalStore.getState().openTrackInfo({ id, title, artists, coverUrl, durationMs });
+        useModalStore
+          .getState()
+          .openTrackInfo({ id, title, artists, coverUrl, durationMs });
       },
     };
 
@@ -157,10 +204,18 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
             icon: (
               <LuHeart
                 size={15}
-                className={liked ? "fill-red-500 text-red-500" : "text-text-secondary"}
+                className={
+                  liked ? "fill-red-500 text-red-500" : "text-text-secondary"
+                }
               />
             ),
             onClick: handleLike,
+          },
+          {
+            id: "share",
+            label: t("common.share"),
+            icon: <ShareForwardLine size={15} />,
+            onClick: handleShare,
           },
           {
             id: "remove-from-playlist",
@@ -242,7 +297,9 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
           icon: (
             <LuHeart
               size={15}
-              className={liked ? "fill-red-500 text-red-500" : "text-text-secondary"}
+              className={
+                liked ? "fill-red-500 text-red-500" : "text-text-secondary"
+              }
             />
           ),
           onClick: handleLike,
@@ -263,7 +320,24 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
             });
           },
         },
+        {
+          id: "share",
+          label: t("common.share"),
+          icon: <ShareForwardLine size={15} />,
+          onClick: handleShare,
+        },
         songInfoItem,
+        ...(onRemoveFromQueue
+          ? [
+              {
+                id: "remove-from-queue",
+                label: t("common.remove_from_queue"),
+                icon: <LuTrash2 size={15} />,
+                danger: true,
+                onClick: onRemoveFromQueue,
+              },
+            ]
+          : []),
       ];
     }
 
@@ -275,7 +349,12 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
               label: t("common.start_radio"),
               icon: <LuRadio size={15} />,
               onClick: () => {
-                void playCollectionRadio({ kind: pinKind, id, title, coverUrl: coverUrl || undefined });
+                void playCollectionRadio({
+                  kind: pinKind,
+                  id,
+                  title,
+                  coverUrl: coverUrl || undefined,
+                });
               },
             },
           ]
@@ -296,6 +375,12 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
           });
         },
       },
+      {
+        id: "share",
+        label: t("common.share"),
+        icon: <ShareForwardLine size={15} />,
+        onClick: handleShare,
+      },
       ...(pinItem ? [pinItem] : []),
     ];
   }, [
@@ -310,13 +395,43 @@ export function useSongMenuItems(ctx: SongMenuContext): DropdownMenuItem[] {
     playlistId,
     playlistItemId,
     playlistTitle,
+    onRemoveFromQueue,
     liked,
     handleLike,
+    handleShare,
     playlistsData,
     pinItem,
     pinKind,
     t,
   ]);
 
-  return buildMenu();
+  const items = buildMenu();
+  if (!isLocalTrackId(id)) {
+    if (!cached) return items;
+    const removeFromCacheItem: DropdownMenuItem = {
+      id: "remove-from-cache",
+      label: t("common.remove_from_cache"),
+      icon: <LuEraser size={15} />,
+      onClick: handleRemoveFromCache,
+    };
+    const firstDanger = items.findIndex((item) => item.danger);
+    if (firstDanger === -1) return [...items, removeFromCacheItem];
+    return [
+      ...items.slice(0, firstDanger),
+      removeFromCacheItem,
+      ...items.slice(firstDanger),
+    ];
+  }
+  const deviceItems = items.filter((item) => !CLOUD_ONLY_ITEMS.has(item.id));
+  if (!onRemoveFromDevice) return deviceItems;
+  return [
+    ...deviceItems,
+    {
+      id: "remove-from-device",
+      label: t("library.local.remove"),
+      icon: <LuTrash2 size={15} />,
+      danger: true,
+      onClick: onRemoveFromDevice,
+    },
+  ];
 }
