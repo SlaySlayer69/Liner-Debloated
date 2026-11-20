@@ -1162,7 +1162,7 @@
       },
       "setup_step_1": "Create an app on",
       "setup_step_2": "Add this redirect URI to the app:",
-      "setup_step_3": "Under User Management, add the email of your Spotify account.",
+      "setup_step_3": "Under User Management, add the name and email of your Spotify account. The account that owns the app needs Spotify Premium.",
       "setup_step_4": "Copy the app's client ID into the field above and sign in.",
       "liked": {
         "title": "Liked songs",
@@ -1198,7 +1198,23 @@
       "every_minutes": "Every {count} min",
       "sync_now": "Sync now",
       "sync_now_button": "Sync",
-      "syncing": "Syncing…"
+      "syncing": "Syncing…",
+      "error_forbidden": "Spotify refused access (403)",
+      "error_rate_limited": "Spotify is rate limiting, trying again later",
+      "result_skipped_playlists_one": "{count} followed playlist skipped",
+      "result_skipped_playlists": "{count} followed playlists skipped",
+      "playlist_not_readable": "Spotify only shares the songs of your own and collaborative playlists",
+      "forbidden_title": "Spotify refuses access",
+      "forbidden_intro": "Spotify answers with 403 when your app may not read this account. Check in the Spotify developer dashboard:",
+      "forbidden_step_users": "Under User Management, the email address of the Spotify account you signed in with is added.",
+      "forbidden_step_premium": "The account that owns the app has Spotify Premium (required for developer apps since February 2026).",
+      "forbidden_step_reconnect": "Then disconnect here, sign in again and press Sync."
+    },
+    "layout_style": {
+      "title": "Layout",
+      "description": "Modern puts the logo and your library in the sidebar. Classic brings back the earlier layout with the logo in the top bar.",
+      "modern": "Modern",
+      "classic": "Classic"
     }
   },
   "toast": {

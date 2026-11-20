@@ -3,7 +3,7 @@ import { notifyLibraryChanged } from "@/features/library/hooks/usePlaylists";
 import { createSpotifyClient, SpotifyApiError } from "../api/spotifyClient";
 import { useSpotifySyncStore } from "../store/spotifySyncStore";
 import { linerTarget } from "./linerTarget";
-import { runSpotifySync } from "./syncEngine";
+import { runSpotifySync, syncErrorCode } from "./syncEngine";
 import type { SyncResult } from "./types";
 
 let running: Promise<SyncResult | null> | null = null;
@@ -51,14 +51,6 @@ export function syncSpotifyNow(
       return result;
     })
     .catch((error: unknown) => {
-      const message =
-        error instanceof SpotifyApiError
-          ? error.status === 401
-            ? "not_connected"
-            : `spotify_${error.status}`
-          : error instanceof Error
-            ? error.message
-            : "sync_failed";
       const result: SyncResult = {
         finishedAt: Date.now(),
         added: 0,
@@ -66,7 +58,10 @@ export function syncSpotifyNow(
         unmatched: 0,
         playlists: 0,
         skipped: false,
-        error: message,
+        error: syncErrorCode(error),
+        ...(error instanceof SpotifyApiError && error.detail
+          ? { errorDetail: error.detail }
+          : {}),
       };
       useSpotifySyncStore.getState().setLastResult(result);
       return result;

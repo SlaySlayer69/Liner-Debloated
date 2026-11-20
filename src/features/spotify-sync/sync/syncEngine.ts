@@ -1,10 +1,11 @@
 import type { Track } from "@/shared/contracts";
-import type {
-  SpotifyAlbum,
-  SpotifyArtist,
-  SpotifyClient,
-  SpotifyPlaylist,
-  SpotifyTrack,
+import {
+  SpotifyApiError,
+  type SpotifyAlbum,
+  type SpotifyArtist,
+  type SpotifyClient,
+  type SpotifyPlaylist,
+  type SpotifyTrack,
 } from "../api/spotifyClient";
 import type {
   CachedMatch,
@@ -165,6 +166,14 @@ async function mirrorSet<S extends { id: string | null }>(options: {
   }
 }
 
+/** spotify only hands out the songs of playlists the user owns or collaborates on */
+export function isReadablePlaylist(
+  playlist: SpotifyPlaylist,
+  userId: string,
+): boolean {
+  return playlist.owner?.id === userId || playlist.collaborative === true;
+}
+
 function playlistsToSync(
   settings: SpotifySyncSettings,
   playlists: SpotifyPlaylist[],
@@ -175,6 +184,12 @@ function playlistsToSync(
     return playlists.filter((playlist) => selected.has(playlist.id));
   }
   return [];
+}
+
+export function syncErrorCode(error: unknown): string {
+  if (error instanceof SpotifyApiError)
+    return error.status === 401 ? "not_connected" : `spotify_${error.status}`;
+  return error instanceof Error ? error.message : "sync_failed";
 }
 
 export async function runSpotifySync(
@@ -192,19 +207,32 @@ export async function runSpotifySync(
     unmatched: 0,
     playlists: 0,
   };
+  const errors: { code: string; detail?: string }[] = [];
   const commit = () => options.commit?.(ledger);
   const force = options.force ?? false;
   let skipped = true;
+  let skippedPlaylists = 0;
 
-  const wantsLibrary = settings.liked || settings.albums || settings.artists;
-  const fingerprints = wantsLibrary
-    ? await spotify.libraryFingerprints()
-    : null;
+  // one failing part (a missing scope, a 403 on one playlist) must not stop the others
+  const attempt = async (work: () => Promise<void>) => {
+    try {
+      await work();
+    } catch (error) {
+      errors.push({
+        code: syncErrorCode(error),
+        ...(error instanceof SpotifyApiError && error.detail
+          ? { detail: error.detail }
+          : {}),
+      });
+    }
+  };
 
   const trackMatch = cachedLookup(ledger.trackMatches, liner.matchTrack, now());
 
-  if (settings.liked && fingerprints) {
-    if (force || ledger.fingerprints.liked !== fingerprints.liked) {
+  if (settings.liked)
+    await attempt(async () => {
+      const fingerprint = await spotify.libraryFingerprint("liked");
+      if (!force && ledger.fingerprints.liked === fingerprint) return;
       skipped = false;
       options.onProgress?.("liked");
       const [tracks, present] = await Promise.all([
@@ -220,10 +248,9 @@ export async function runSpotifySync(
         remove: (id) => liner.setLiked(id, false),
         counters,
       });
-      ledger.fingerprints.liked = fingerprints.liked;
+      ledger.fingerprints.liked = fingerprint;
       commit();
-    }
-  }
+    });
 
   const collections = [
     {
@@ -242,68 +269,73 @@ export async function runSpotifySync(
     },
   ];
   for (const section of collections) {
-    if (!section.enabled || !fingerprints) continue;
-    if (
-      !force &&
-      ledger.fingerprints[section.key] === fingerprints[section.key]
-    )
-      continue;
-    skipped = false;
-    options.onProgress?.(section.key);
-    const match = cachedLookup<
-      SpotifyAlbum | SpotifyArtist,
-      CollectionSnapshot
-    >(
-      section.cache,
-      section.lookup as (
-        item: SpotifyAlbum | SpotifyArtist,
-      ) => Promise<CollectionSnapshot | null>,
-      now(),
-    );
-    const [items, present] = await Promise.all([
-      section.load(),
-      liner.savedCollectionIds(section.key),
-    ]);
-    await mirrorSet<SpotifyAlbum | SpotifyArtist>({
-      source: items,
-      entries: ledger[section.key],
-      match: async (item) => (await match(item))?.id ?? null,
-      present,
-      add: async (item) => {
-        const snapshot = section.cache[item.id]?.value;
-        if (snapshot) await liner.saveCollection(section.key, snapshot);
-      },
-      remove: (id) => liner.removeCollection(section.key, id),
-      counters,
+    if (!section.enabled) continue;
+    await attempt(async () => {
+      const fingerprint = await spotify.libraryFingerprint(section.key);
+      if (!force && ledger.fingerprints[section.key] === fingerprint) return;
+      skipped = false;
+      options.onProgress?.(section.key);
+      const match = cachedLookup<
+        SpotifyAlbum | SpotifyArtist,
+        CollectionSnapshot
+      >(
+        section.cache,
+        section.lookup as (
+          item: SpotifyAlbum | SpotifyArtist,
+        ) => Promise<CollectionSnapshot | null>,
+        now(),
+      );
+      const [items, present] = await Promise.all([
+        section.load(),
+        liner.savedCollectionIds(section.key),
+      ]);
+      await mirrorSet<SpotifyAlbum | SpotifyArtist>({
+        source: items,
+        entries: ledger[section.key],
+        match: async (item) => (await match(item))?.id ?? null,
+        present,
+        add: async (item) => {
+          const snapshot = section.cache[item.id]?.value;
+          if (snapshot) await liner.saveCollection(section.key, snapshot);
+        },
+        remove: (id) => liner.removeCollection(section.key, id),
+        counters,
+      });
+      ledger.fingerprints[section.key] = fingerprint;
+      commit();
     });
-    ledger.fingerprints[section.key] = fingerprints[section.key];
-    commit();
   }
 
-  if (settings.playlistsMode !== "none") {
-    const playlists = playlistsToSync(settings, await spotify.playlists());
-    for (const playlist of playlists) {
-      const known = ledger.playlists[playlist.id];
-      if (!force && known && known.snapshotId === playlist.snapshot_id)
-        continue;
-      skipped = false;
-      options.onProgress?.(`playlist:${playlist.name}`);
-      await syncPlaylist(
-        spotify,
-        liner,
-        ledger,
-        playlist,
-        trackMatch,
-        counters,
-      );
-      commit();
-    }
-  }
+  if (settings.playlistsMode !== "none")
+    await attempt(async () => {
+      const [profile, all] = await Promise.all([
+        spotify.me(),
+        spotify.playlists(),
+      ]);
+      for (const playlist of playlistsToSync(settings, all)) {
+        if (!isReadablePlaylist(playlist, profile.id)) {
+          skippedPlaylists += 1;
+          continue;
+        }
+        const known = ledger.playlists[playlist.id];
+        if (!force && known && known.snapshotId === playlist.snapshot_id)
+          continue;
+        skipped = false;
+        options.onProgress?.(`playlist:${playlist.name}`);
+        await attempt(() =>
+          syncPlaylist(spotify, liner, ledger, playlist, trackMatch, counters),
+        );
+        commit();
+      }
+    });
 
   const result: SyncResult = {
     finishedAt: now(),
     ...counters,
-    skipped,
+    skipped: skipped && errors.length === 0,
+    ...(skippedPlaylists ? { skippedPlaylists } : {}),
+    ...(errors[0] ? { error: errors[0].code } : {}),
+    ...(errors[0]?.detail ? { errorDetail: errors[0].detail } : {}),
   };
   return { ledger, result };
 }

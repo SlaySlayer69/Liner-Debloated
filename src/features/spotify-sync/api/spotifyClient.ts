@@ -30,9 +30,14 @@ export interface SpotifyPlaylist {
   description?: string | null;
   snapshot_id: string;
   owner?: { id: string; display_name?: string | null };
+  collaborative?: boolean;
   images?: SpotifyImage[] | null;
-  tracks?: { total: number };
+  /** since february 2026 the song count lives under `items` */
+  items?: { total: number } | null;
+  tracks?: { total: number } | null;
 }
+
+export type LibrarySection = "liked" | "albums" | "artists";
 
 export interface SpotifyAlbum {
   id: string;
@@ -58,6 +63,8 @@ export class SpotifyApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** the message spotify sent along, e.g. why a request was forbidden */
+    readonly detail?: string,
   ) {
     super(message);
   }
@@ -70,12 +77,8 @@ export interface SpotifyClient {
   savedTracks(): Promise<SpotifyTrack[]>;
   savedAlbums(): Promise<SpotifyAlbum[]>;
   followedArtists(): Promise<SpotifyArtist[]>;
-  /** cheap change markers: total count plus the newest entry */
-  libraryFingerprints(): Promise<{
-    liked: string;
-    albums: string;
-    artists: string;
-  }>;
+  /** cheap change marker: total count plus the newest entry */
+  libraryFingerprint(section: LibrarySection): Promise<string>;
 }
 
 type TokenSource = () => Promise<string | null>;
@@ -103,11 +106,21 @@ export function createSpotifyClient(
         await sleep(Math.min(wait, 30) * 1000);
         continue;
       }
-      if (!response.ok)
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: { message?: string } | string;
+          error_description?: string;
+        } | null;
+        const detail =
+          typeof body?.error === "object"
+            ? body.error.message
+            : (body?.error_description ?? body?.error);
         throw new SpotifyApiError(
           response.status,
           `spotify_${response.status}`,
+          detail || undefined,
         );
+      }
       return (await response.json()) as T;
     }
   }
@@ -137,15 +150,15 @@ export function createSpotifyClient(
       const id = encodeURIComponent(playlistId);
       let items: { track?: SpotifyTrack | null; item?: SpotifyTrack | null }[];
       try {
-        items = await allPages(`/playlists/${id}/tracks?limit=100`);
+        items = await allPages(`/playlists/${id}/items?limit=100`);
       } catch (error) {
-        // newer api versions serve playlist entries under /items
+        // apps with extended quota may still only know the old /tracks path
         if (
           !(error instanceof SpotifyApiError) ||
           (error.status !== 404 && error.status !== 410)
         )
           throw error;
-        items = await allPages(`/playlists/${id}/items?limit=100`);
+        items = await allPages(`/playlists/${id}/tracks?limit=100`);
       }
       return onlyTracks(
         items.map((entry) => entry.track ?? entry.item ?? null),
@@ -175,25 +188,23 @@ export function createSpotifyClient(
       }
       return artists;
     },
-    async libraryFingerprints() {
-      const [liked, albums, artists] = await Promise.all([
-        get<{
-          total: number;
-          items: { added_at: string; track: { id: string | null } }[];
-        }>("/me/tracks?limit=1"),
-        get<{
-          total: number;
-          items: { added_at: string; album: { id: string } }[];
-        }>("/me/albums?limit=1"),
-        get<{ artists: { total: number; items: { id: string }[] } }>(
-          "/me/following?type=artist&limit=1",
-        ),
-      ]);
-      return {
-        liked: `${liked.total}:${liked.items[0]?.track?.id ?? ""}:${liked.items[0]?.added_at ?? ""}`,
-        albums: `${albums.total}:${albums.items[0]?.album?.id ?? ""}:${albums.items[0]?.added_at ?? ""}`,
-        artists: `${artists.artists.total}:${artists.artists.items[0]?.id ?? ""}`,
-      };
+    async libraryFingerprint(section) {
+      if (section === "artists") {
+        const page = await get<{
+          artists: { total: number; items: { id: string }[] };
+        }>("/me/following?type=artist&limit=1");
+        return `${page.artists.total}:${page.artists.items[0]?.id ?? ""}`;
+      }
+      const page = await get<{
+        total: number;
+        items: {
+          added_at: string;
+          track?: { id: string | null };
+          album?: { id: string };
+        }[];
+      }>(section === "liked" ? "/me/tracks?limit=1" : "/me/albums?limit=1");
+      const first = page.items[0];
+      return `${page.total}:${first?.track?.id ?? first?.album?.id ?? ""}:${first?.added_at ?? ""}`;
     },
   };
 }

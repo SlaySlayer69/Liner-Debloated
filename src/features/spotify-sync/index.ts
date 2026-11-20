@@ -11,6 +11,7 @@ export {
   useSpotifySyncStore,
 } from "./store/spotifySyncStore";
 export { syncSpotifyNow } from "./sync/controller";
+export { isReadablePlaylist } from "./sync/syncEngine";
 export type { PlaylistSyncMode, SyncResult } from "./sync/types";
 
 /** must match the redirect uri registered in the user's spotify app (electron/spotify/pkce.ts) */

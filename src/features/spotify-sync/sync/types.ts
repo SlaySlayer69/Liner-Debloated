@@ -60,7 +60,11 @@ export interface SyncResult {
   unmatched: number;
   playlists: number;
   skipped: boolean;
+  /** selected playlists spotify does not share the songs of (followed, not own) */
+  skippedPlaylists?: number;
   error?: string;
+  /** spotify's own explanation, when it gave one */
+  errorDetail?: string;
 }
 
 export const emptyLedger = (owner: string | null = null): SyncLedger => ({

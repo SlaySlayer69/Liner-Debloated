@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Track } from "@/shared/contracts";
-import type {
-  SpotifyAlbum,
-  SpotifyClient,
-  SpotifyPlaylist,
-  SpotifyTrack,
+import {
+  SpotifyApiError,
+  type SpotifyAlbum,
+  type SpotifyClient,
+  type SpotifyPlaylist,
+  type SpotifyTrack,
 } from "../api/spotifyClient";
 import {
   LinerPlaylistMissingError,
@@ -54,11 +55,12 @@ function fakeSpotify(state: {
     savedTracks: async () => state.liked ?? [],
     savedAlbums: async () => state.albums ?? [],
     followedArtists: async () => [],
-    libraryFingerprints: async () => ({
-      liked: (state.liked ?? []).map((t) => t.id).join(","),
-      albums: (state.albums ?? []).map((a) => a.id).join(","),
-      artists: "",
-    }),
+    libraryFingerprint: async (section) =>
+      section === "liked"
+        ? (state.liked ?? []).map((t) => t.id).join(",")
+        : section === "albums"
+          ? (state.albums ?? []).map((a) => a.id).join(",")
+          : "",
   };
 }
 
@@ -186,8 +188,8 @@ describe("runSpotifySync", () => {
     const liner = fakeLiner();
     const state = {
       playlists: [
-        { id: "p1", name: "Mix", snapshot_id: "s1" },
-        { id: "p2", name: "Other", snapshot_id: "s1" },
+        { id: "p1", name: "Mix", snapshot_id: "s1", owner: { id: "me" } },
+        { id: "p2", name: "Other", snapshot_id: "s1", owner: { id: "me" } },
       ] as SpotifyPlaylist[],
       playlistTracks: { p1: [sTrack("1"), sTrack("2"), sTrack("1")] } as Record<
         string,
@@ -233,5 +235,70 @@ describe("runSpotifySync", () => {
     expect(liner.playlists.get(third.ledger.playlists.p1.linerId)!.size).toBe(
       2,
     );
+  });
+
+  it("skips playlists spotify does not share the songs of", async () => {
+    const liner = fakeLiner();
+    const state = {
+      playlists: [
+        { id: "mine", name: "Mine", snapshot_id: "s", owner: { id: "me" } },
+        {
+          id: "shared",
+          name: "Team",
+          snapshot_id: "s",
+          owner: { id: "x" },
+          collaborative: true,
+        },
+        {
+          id: "followed",
+          name: "Top 50",
+          snapshot_id: "s",
+          owner: { id: "spotify" },
+        },
+      ] as SpotifyPlaylist[],
+      playlistTracks: { mine: [sTrack("1")], shared: [sTrack("2")] } as Record<
+        string,
+        SpotifyTrack[]
+      >,
+    };
+    const cfg = settings({ liked: false, playlistsMode: "all" });
+    const { ledger, result } = await runSpotifySync(
+      fakeSpotify(state),
+      liner.target,
+      cfg,
+      emptyLedger(),
+    );
+    expect(Object.keys(ledger.playlists).sort()).toEqual(["mine", "shared"]);
+    expect(result).toMatchObject({ playlists: 2, skippedPlaylists: 1 });
+    expect(result.error).toBeUndefined();
+  });
+
+  it("keeps syncing the other parts when one is forbidden", async () => {
+    const liner = fakeLiner();
+    const spotify = fakeSpotify({
+      albums: [{ id: "A", name: "album", artists: [] }] as SpotifyAlbum[],
+    });
+    spotify.libraryFingerprint = async (section) => {
+      if (section === "liked")
+        throw new SpotifyApiError(
+          403,
+          "spotify_403",
+          "user may not be registered",
+        );
+      return "fp";
+    };
+    const cfg = settings({ albums: true });
+    const { result } = await runSpotifySync(
+      spotify,
+      liner.target,
+      cfg,
+      emptyLedger(),
+    );
+    expect([...liner.albums]).toEqual(["al-A"]);
+    expect(result).toMatchObject({
+      error: "spotify_403",
+      errorDetail: "user may not be registered",
+      skipped: false,
+    });
   });
 });
