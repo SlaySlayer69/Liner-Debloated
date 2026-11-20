@@ -199,6 +199,15 @@ export interface LinerElectronApi {
   updateOverlaySettings: (settings: any) => void;
   pauseOverlayShortcuts: (paused: boolean) => void;
   getShortcutStatus?: () => Promise<Record<string, string>>;
+  spotifyStatus?: () => Promise<{
+    connected: boolean;
+    clientId: string | null;
+  }>;
+  spotifyConnect?: (
+    clientId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  spotifyDisconnect?: () => Promise<boolean>;
+  spotifyAccessToken?: () => Promise<string | null>;
   onShortcutStatus?: (
     cb: (status: Record<string, string>) => void,
   ) => () => void;
@@ -461,6 +470,10 @@ const api: LinerElectronApi = {
     ipcRenderer.send("overlay:pause-shortcuts", paused);
   },
   getShortcutStatus: () => ipcRenderer.invoke("shortcuts:get-status"),
+  spotifyStatus: () => ipcRenderer.invoke("spotify:status"),
+  spotifyConnect: (clientId) => ipcRenderer.invoke("spotify:connect", clientId),
+  spotifyDisconnect: () => ipcRenderer.invoke("spotify:disconnect"),
+  spotifyAccessToken: () => ipcRenderer.invoke("spotify:access-token"),
   onShortcutStatus: (cb) => {
     const listener = (_event: unknown, status: Record<string, string>) =>
       cb(status);

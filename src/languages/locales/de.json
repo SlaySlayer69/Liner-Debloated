@@ -534,7 +534,8 @@
       "about": "Info",
       "playback": "Wiedergabe",
       "overlay": "Overlay",
-      "privacy": "Datenschutz"
+      "privacy": "Datenschutz",
+      "spotify": "Spotify"
     },
     "playback": {
       "description": "Verhalten der Warteschlange, Klickaktionen und Audioausgabe."
@@ -801,6 +802,71 @@
     },
     "connection": {
       "open_folder": "Speicherort öffnen"
+    },
+    "spotify": {
+      "description": "Melde dich mit Spotify an und halte Lieblingssongs, Alben, Künstler und Playlists mit Liner synchron.",
+      "section_app": "Spotify-App",
+      "section_what": "Was synchronisiert wird",
+      "section_playlists": "Zu synchronisierende Playlists",
+      "section_auto": "Synchronisierung",
+      "signed_out_title": "Nicht verbunden",
+      "signed_out_description": "Trage unten deine Client-ID ein und melde dich an",
+      "signed_in_subtitle": "Mit Spotify verbunden",
+      "waiting_for_browser": "Schließe die Anmeldung im Browser ab…",
+      "sign_in": "Anmelden",
+      "sign_out": "Trennen",
+      "error_denied": "Spotify-Anmeldung wurde abgelehnt",
+      "error_timeout": "Zeitüberschreitung bei der Anmeldung",
+      "error_not_connected": "Spotify ist nicht verbunden",
+      "error_generic": "Etwas ist schiefgelaufen ({code})",
+      "progress_running": "Synchronisiere…",
+      "progress_playlist": "Synchronisiere „{name}“…",
+      "never_synced": "Noch nicht synchronisiert",
+      "result_unchanged": "Um {time} geprüft, keine Änderungen bei Spotify",
+      "result": "Um {time} synchronisiert: {added} hinzugefügt, {removed} entfernt, {unmatched} nicht gefunden",
+      "client_id": {
+        "title": "Client-ID",
+        "description": "Liner meldet sich über deine eigene Spotify-Entwickler-App an. Sie braucht nur Lesezugriff auf deine Bibliothek."
+      },
+      "setup_step_1": "Erstelle eine App auf",
+      "setup_step_2": "Trage diese Redirect-URI in der App ein:",
+      "setup_step_3": "Füge unter „User Management“ die E-Mail deines Spotify-Kontos hinzu.",
+      "setup_step_4": "Kopiere die Client-ID der App in das Feld oben und melde dich an.",
+      "liked": {
+        "title": "Lieblingssongs",
+        "description": "Songs, die du bei Spotify gespeichert hast, in Liner liken."
+      },
+      "albums": {
+        "title": "Gespeicherte Alben",
+        "description": "Deine gespeicherten Spotify-Alben zur Bibliothek hinzufügen."
+      },
+      "artists": {
+        "title": "Gefolgte Künstler",
+        "description": "Künstler, denen du bei Spotify folgst, zur Bibliothek hinzufügen."
+      },
+      "playlists": {
+        "title": "Playlists",
+        "description": "Spotify-Playlists nach Liner kopieren und aktuell halten.",
+        "none": "Keine",
+        "selected": "Ausgewählte",
+        "all": "Alle"
+      },
+      "reload_playlists": "Playlists neu laden",
+      "playlists_sign_in_first": "Melde dich mit Spotify an, um Playlists auszuwählen.",
+      "playlists_failed": "Deine Spotify-Playlists konnten nicht geladen werden.",
+      "playlists_empty": "Dieses Spotify-Konto hat keine Playlists.",
+      "track_count_one": "{count} Song",
+      "track_count": "{count} Songs",
+      "auto_sync": {
+        "title": "Auf Änderungen prüfen",
+        "description": "Sucht im Hintergrund nach Änderungen bei Spotify, solange Liner offen ist. Entfernt wird nur, was die Synchronisierung selbst hinzugefügt hat."
+      },
+      "interval": "Intervall",
+      "every_minutes_one": "Jede Minute",
+      "every_minutes": "Alle {count} Min.",
+      "sync_now": "Jetzt synchronisieren",
+      "sync_now_button": "Synchronisieren",
+      "syncing": "Synchronisiere…"
     }
   },
   "toast": {

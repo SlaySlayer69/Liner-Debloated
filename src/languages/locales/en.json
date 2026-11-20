@@ -647,7 +647,8 @@
       "overlay": "Overlay",
       "discord": "Discord RPC",
       "youtube": "YouTube",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "spotify": "Spotify"
     },
     "playback": {
       "description": "Queue behavior, click actions and audio output."
@@ -1133,6 +1134,71 @@
     },
     "connection": {
       "open_folder": "Open saved location"
+    },
+    "spotify": {
+      "description": "Sign in with Spotify and keep your liked songs, albums, artists and playlists in sync with Liner.",
+      "section_app": "Spotify app",
+      "section_what": "What to sync",
+      "section_playlists": "Playlists to sync",
+      "section_auto": "Sync",
+      "signed_out_title": "Not connected",
+      "signed_out_description": "Enter your client ID below, then sign in",
+      "signed_in_subtitle": "Connected to Spotify",
+      "waiting_for_browser": "Finish signing in in your browser…",
+      "sign_in": "Sign in",
+      "sign_out": "Disconnect",
+      "error_denied": "Spotify sign-in was declined",
+      "error_timeout": "Sign-in timed out",
+      "error_not_connected": "Spotify is not connected",
+      "error_generic": "Something went wrong ({code})",
+      "progress_running": "Syncing…",
+      "progress_playlist": "Syncing “{name}”…",
+      "never_synced": "Not synced yet",
+      "result_unchanged": "Checked at {time}, nothing changed on Spotify",
+      "result": "Synced at {time}: {added} added, {removed} removed, {unmatched} not found",
+      "client_id": {
+        "title": "Client ID",
+        "description": "Liner signs in through your own Spotify developer app. It only needs read access to your library."
+      },
+      "setup_step_1": "Create an app on",
+      "setup_step_2": "Add this redirect URI to the app:",
+      "setup_step_3": "Under User Management, add the email of your Spotify account.",
+      "setup_step_4": "Copy the app's client ID into the field above and sign in.",
+      "liked": {
+        "title": "Liked songs",
+        "description": "Like songs in Liner that you saved on Spotify."
+      },
+      "albums": {
+        "title": "Saved albums",
+        "description": "Add your saved Spotify albums to the library."
+      },
+      "artists": {
+        "title": "Followed artists",
+        "description": "Add the artists you follow on Spotify to the library."
+      },
+      "playlists": {
+        "title": "Playlists",
+        "description": "Copy Spotify playlists into Liner and keep them up to date.",
+        "none": "None",
+        "selected": "Selected",
+        "all": "All"
+      },
+      "reload_playlists": "Reload playlists",
+      "playlists_sign_in_first": "Sign in with Spotify to choose playlists.",
+      "playlists_failed": "Could not load your Spotify playlists.",
+      "playlists_empty": "No playlists on this Spotify account.",
+      "track_count_one": "{count} song",
+      "track_count": "{count} songs",
+      "auto_sync": {
+        "title": "Check for changes",
+        "description": "Look for changes on Spotify in the background while Liner is open. Only items added by the sync are removed again."
+      },
+      "interval": "Interval",
+      "every_minutes_one": "Every minute",
+      "every_minutes": "Every {count} min",
+      "sync_now": "Sync now",
+      "sync_now_button": "Sync",
+      "syncing": "Syncing…"
     }
   },
   "toast": {

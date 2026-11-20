@@ -16,6 +16,7 @@ import { usePresenceSync } from "@/shared/presence";
 import { useTouchBarSync } from "@/features/touchbar";
 import { useOverlaySync } from "@/features/overlay";
 import { useDiscordSync } from "@/features/discord";
+import { useSpotifySync } from "@/features/spotify-sync";
 import { AppRoutes } from "./routes";
 import DeeplinkHandler from "./DeeplinkHandler";
 import EnvironmentWarning from "./EnvironmentWarning";
@@ -53,6 +54,11 @@ function DiscordSync() {
   return null;
 }
 
+function SpotifySync() {
+  useSpotifySync();
+  return null;
+}
+
 export default function App() {
   useWindowDrag();
 
@@ -72,6 +78,7 @@ export default function App() {
         <TouchBarSync />
         <OverlaySync />
         <DiscordSync />
+        <SpotifySync />
         <AppleEmojiProvider>
           <I18nProvider>
             <ToastProvider>
