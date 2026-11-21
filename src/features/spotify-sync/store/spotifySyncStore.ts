@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   emptyLedger,
+  type LinkedSource,
   type SpotifySyncSettings,
   type SyncLedger,
   type SyncResult,
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: SpotifySyncSettings = {
   playlistsMode: "selected",
   selectedPlaylists: [],
   intervalMinutes: 5,
+  linkedSources: [],
 };
 
 interface SpotifySyncState {
@@ -34,6 +36,10 @@ interface SpotifySyncState {
   setLedger: (ledger: SyncLedger) => void;
   /** forget what was synced (sign-out, other liner account); keeps the settings */
   resetLedger: (owner?: string | null) => void;
+  /** after disconnecting spotify: forget the account part, keep what the public links synced */
+  forgetAccountSync: () => void;
+  addLinkedSource: (source: LinkedSource) => void;
+  removeLinkedSource: (id: string) => void;
   setRunning: (running: boolean, progress?: string | null) => void;
   setLastResult: (result: SyncResult) => void;
 }
@@ -60,6 +66,46 @@ export const useSpotifySyncStore = create<SpotifySyncState>()(
       setLedger: (ledger) => set({ ledger }),
       resetLedger: (owner = null) =>
         set({ ledger: emptyLedger(owner), lastResult: null }),
+      forgetAccountSync: () => {
+        const { ledger } = get();
+        const linkPlaylists = Object.fromEntries(
+          Object.entries(ledger.playlists).filter(([key]) =>
+            key.startsWith("link:"),
+          ),
+        );
+        set({
+          ledger: {
+            ...emptyLedger(ledger.owner),
+            playlists: linkPlaylists,
+            linkAlbums: ledger.linkAlbums,
+            trackMatches: ledger.trackMatches,
+            albumMatches: ledger.albumMatches,
+            artistMatches: ledger.artistMatches,
+          },
+        });
+      },
+      addLinkedSource: (source) => {
+        const { settings } = get();
+        if (settings.linkedSources.some((item) => item.id === source.id))
+          return;
+        set({
+          settings: {
+            ...settings,
+            linkedSources: [...settings.linkedSources, source],
+          },
+        });
+      },
+      removeLinkedSource: (id) => {
+        const { settings } = get();
+        set({
+          settings: {
+            ...settings,
+            linkedSources: settings.linkedSources.filter(
+              (item) => item.id !== id,
+            ),
+          },
+        });
+      },
       setRunning: (running, progress = null) => set({ running, progress }),
       setLastResult: (lastResult) => set({ lastResult }),
     }),

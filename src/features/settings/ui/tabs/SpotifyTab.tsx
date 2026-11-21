@@ -27,16 +27,22 @@ import {
   useSpotifyAccount,
   useSpotifySyncStore,
   type PlaylistSyncMode,
+  SpotifyApiError,
+  isReadablePlaylist,
   type SpotifyPlaylist,
 } from "@/features/spotify-sync";
 import { SettingBlock, SettingRow, SettingSection } from "../controls";
+import { SpotifyLinksSection } from "./SpotifyLinksSection";
 
 const SPOTIFY_DASHBOARD = "https://developer.spotify.com/dashboard";
 const CLIENT_ID_PATTERN = /^[0-9a-f]{32}$/i;
 
 function useSpotifyPlaylists(connected: boolean) {
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<{
+    code: string;
+    detail?: string;
+  } | null>(null);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
@@ -47,10 +53,19 @@ function useSpotifyPlaylists(connected: boolean) {
       .then((items) => {
         if (cancelled) return;
         setPlaylists(items);
-        setFailed(false);
+        setFailure(null);
       })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setFailure({
+          code:
+            error instanceof SpotifyApiError
+              ? `spotify_${error.status}`
+              : "sync_failed",
+          ...(error instanceof SpotifyApiError && error.detail
+            ? { detail: error.detail }
+            : {}),
+        });
       });
     return () => {
       cancelled = true;
@@ -59,7 +74,7 @@ function useSpotifyPlaylists(connected: boolean) {
 
   return {
     playlists: connected ? playlists : null,
-    failed,
+    failure,
     reload: () => setVersion((v) => v + 1),
   };
 }
@@ -80,7 +95,7 @@ export function SpotifyTab({ searchQuery }: { searchQuery?: string }) {
   const running = useSpotifySyncStore((s) => s.running);
   const progress = useSpotifySyncStore((s) => s.progress);
   const lastResult = useSpotifySyncStore((s) => s.lastResult);
-  const { playlists, failed, reload } = useSpotifyPlaylists(account.connected);
+  const { playlists, failure, reload } = useSpotifyPlaylists(account.connected);
 
   const [clientId, setClientId] = useState(settings.clientId);
   const [connecting, setConnecting] = useState(false);
@@ -107,6 +122,7 @@ export function SpotifyTab({ searchQuery }: { searchQuery?: string }) {
     [settings.selectedPlaylists],
   );
   const disabled = !account.connected;
+  const canSync = account.connected || settings.linkedSources.length > 0;
 
   const errorText = (code: string) =>
     code === "access_denied"
@@ -115,7 +131,11 @@ export function SpotifyTab({ searchQuery }: { searchQuery?: string }) {
         ? t("settings.spotify.error_timeout")
         : code === "not_connected"
           ? t("settings.spotify.error_not_connected")
-          : t("settings.spotify.error_generic", { code });
+          : code === "spotify_403"
+            ? t("settings.spotify.error_forbidden")
+            : code === "spotify_429"
+              ? t("settings.spotify.error_rate_limited")
+              : t("settings.spotify.error_generic", { code });
 
   const resultText = () => {
     if (running) {
@@ -127,15 +147,24 @@ export function SpotifyTab({ searchQuery }: { searchQuery?: string }) {
     }
     if (!lastResult) return t("settings.spotify.never_synced");
     const time = formatTime(lastResult.finishedAt, locale);
-    if (lastResult.error) return `${time} · ${errorText(lastResult.error)}`;
-    if (lastResult.skipped)
-      return t("settings.spotify.result_unchanged", { time });
-    return t("settings.spotify.result", {
-      time,
-      added: lastResult.added,
-      removed: lastResult.removed,
-      unmatched: lastResult.unmatched,
-    });
+    const parts = [
+      lastResult.skipped
+        ? t("settings.spotify.result_unchanged", { time })
+        : t("settings.spotify.result", {
+            time,
+            added: lastResult.added,
+            removed: lastResult.removed,
+            unmatched: lastResult.unmatched,
+          }),
+    ];
+    if (lastResult.skippedPlaylists)
+      parts.push(
+        t("settings.spotify.result_skipped_playlists", {
+          count: lastResult.skippedPlaylists,
+        }),
+      );
+    if (lastResult.error) parts.push(errorText(lastResult.error));
+    return parts.join(" · ");
   };
 
   return (
@@ -190,6 +219,30 @@ export function SpotifyTab({ searchQuery }: { searchQuery?: string }) {
         />
       )}
 
+      {account.connected &&
+        !searching &&
+        (failure?.code === "spotify_403" ||
+          lastResult?.error === "spotify_403") && (
+          <div className="flex flex-col gap-[6px] rounded-item bg-fill px-[14px] py-[12px] text-caption leading-[17px] text-text-secondary">
+            <span className="text-label font-[600] text-text-primary">
+              {t("settings.spotify.forbidden_title")}
+            </span>
+            <span>{t("settings.spotify.forbidden_intro")}</span>
+            <ol className="m-0 flex list-decimal flex-col gap-[4px] pl-[18px]">
+              <li>{t("settings.spotify.forbidden_step_users")}</li>
+              <li>{t("settings.spotify.forbidden_step_premium")}</li>
+              <li>{t("settings.spotify.forbidden_step_reconnect")}</li>
+            </ol>
+            {(failure?.detail || lastResult?.errorDetail) && (
+              <span className="text-text-tertiary">
+                Spotify: „{failure?.detail || lastResult?.errorDetail}“
+              </span>
+            )}
+          </div>
+        )}
+
+      {!account.connected && !searching && <SpotifyLinksSection />}
+
       {!account.connected && (
         <SettingSection label={t("settings.spotify.section_app")}>
           <SettingBlock
@@ -236,150 +289,180 @@ export function SpotifyTab({ searchQuery }: { searchQuery?: string }) {
         </SettingSection>
       )}
 
-      <SettingSection label={t("settings.spotify.section_what")}>
-        <SettingRow
-          title={t("settings.spotify.liked.title")}
-          description={t("settings.spotify.liked.description")}
-          titleKey="settings.spotify.liked.title"
-          descKey="settings.spotify.liked.description"
-          icon={<HeartFill size={20} />}
-          searchQuery={searchQuery}
-          control={
-            <ToggleSwitch
-              checked={settings.liked}
-              onChange={(liked) => updateSettings({ liked })}
-            />
-          }
-        />
-        <SettingRow
-          title={t("settings.spotify.albums.title")}
-          description={t("settings.spotify.albums.description")}
-          titleKey="settings.spotify.albums.title"
-          descKey="settings.spotify.albums.description"
-          icon={<AlbumFill size={20} />}
-          searchQuery={searchQuery}
-          control={
-            <ToggleSwitch
-              checked={settings.albums}
-              onChange={(albums) => updateSettings({ albums })}
-            />
-          }
-        />
-        <SettingRow
-          title={t("settings.spotify.artists.title")}
-          description={t("settings.spotify.artists.description")}
-          titleKey="settings.spotify.artists.title"
-          descKey="settings.spotify.artists.description"
-          icon={<MicFill size={20} />}
-          searchQuery={searchQuery}
-          control={
-            <ToggleSwitch
-              checked={settings.artists}
-              onChange={(artists) => updateSettings({ artists })}
-            />
-          }
-        />
-        <SettingRow
-          title={t("settings.spotify.playlists.title")}
-          description={t("settings.spotify.playlists.description")}
-          titleKey="settings.spotify.playlists.title"
-          descKey="settings.spotify.playlists.description"
-          icon={<Playlist2Fill size={20} />}
-          searchQuery={searchQuery}
-          control={
-            <MenuSelect<PlaylistSyncMode>
-              aria-label={t("settings.spotify.playlists.title")}
-              className="w-[170px]"
-              value={settings.playlistsMode}
-              onChange={(playlistsMode) => updateSettings({ playlistsMode })}
-              options={[
-                { value: "none", label: t("settings.spotify.playlists.none") },
-                {
-                  value: "selected",
-                  label: t("settings.spotify.playlists.selected"),
-                },
-                { value: "all", label: t("settings.spotify.playlists.all") },
-              ]}
-            />
-          }
-        />
-      </SettingSection>
-
-      {settings.playlistsMode === "selected" && !searching && (
-        <SettingSection
-          label={t("settings.spotify.section_playlists")}
-          action={
-            account.connected ? (
-              <button
-                type="button"
-                onClick={reload}
-                aria-label={t("settings.spotify.reload_playlists")}
-                className="flex cursor-pointer items-center border-0 bg-transparent p-0 text-text-tertiary hover:text-text-primary"
-              >
-                <Refresh2Fill size={16} />
-              </button>
-            ) : undefined
-          }
-        >
-          <div className="flex max-h-[320px] flex-col overflow-y-auto px-[8px] py-[4px]">
-            {disabled ? (
-              <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
-                {t("settings.spotify.playlists_sign_in_first")}
-              </p>
-            ) : failed ? (
-              <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
-                {t("settings.spotify.playlists_failed")}
-              </p>
-            ) : !playlists ? (
-              <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
-                {t("common.loading") || "…"}
-              </p>
-            ) : playlists.length === 0 ? (
-              <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
-                {t("settings.spotify.playlists_empty")}
-              </p>
-            ) : (
-              playlists.map((playlist) => (
-                <label
-                  key={playlist.id}
-                  className="flex cursor-pointer items-center gap-[10px] rounded-control px-[8px] py-[6px] hover:bg-fill"
-                >
-                  <input
-                    type="checkbox"
-                    className="size-[15px] cursor-pointer accent-[var(--color-text-primary)]"
-                    checked={selected.has(playlist.id)}
-                    onChange={(event) =>
-                      togglePlaylist(playlist.id, event.target.checked)
-                    }
-                  />
-                  <span className="relative size-[32px] shrink-0 overflow-hidden rounded-[6px] bg-fill">
-                    {playlist.images?.[0]?.url ? (
-                      <AppImage src={playlist.images[0].url} alt="" fill />
-                    ) : null}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-label text-text-primary">
-                      {playlist.name}
-                    </span>
-                    <span className="truncate text-caption text-text-tertiary">
-                      {[
-                        playlist.owner?.display_name,
-                        playlist.tracks?.total !== undefined
-                          ? t("settings.spotify.track_count", {
-                              count: playlist.tracks.total,
-                            })
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
-          </div>
+      {account.connected && (
+        <SettingSection label={t("settings.spotify.section_what")}>
+          <SettingRow
+            title={t("settings.spotify.liked.title")}
+            description={t("settings.spotify.liked.description")}
+            titleKey="settings.spotify.liked.title"
+            descKey="settings.spotify.liked.description"
+            icon={<HeartFill size={20} />}
+            searchQuery={searchQuery}
+            control={
+              <ToggleSwitch
+                checked={settings.liked}
+                onChange={(liked) => updateSettings({ liked })}
+              />
+            }
+          />
+          <SettingRow
+            title={t("settings.spotify.albums.title")}
+            description={t("settings.spotify.albums.description")}
+            titleKey="settings.spotify.albums.title"
+            descKey="settings.spotify.albums.description"
+            icon={<AlbumFill size={20} />}
+            searchQuery={searchQuery}
+            control={
+              <ToggleSwitch
+                checked={settings.albums}
+                onChange={(albums) => updateSettings({ albums })}
+              />
+            }
+          />
+          <SettingRow
+            title={t("settings.spotify.artists.title")}
+            description={t("settings.spotify.artists.description")}
+            titleKey="settings.spotify.artists.title"
+            descKey="settings.spotify.artists.description"
+            icon={<MicFill size={20} />}
+            searchQuery={searchQuery}
+            control={
+              <ToggleSwitch
+                checked={settings.artists}
+                onChange={(artists) => updateSettings({ artists })}
+              />
+            }
+          />
+          <SettingRow
+            title={t("settings.spotify.playlists.title")}
+            description={t("settings.spotify.playlists.description")}
+            titleKey="settings.spotify.playlists.title"
+            descKey="settings.spotify.playlists.description"
+            icon={<Playlist2Fill size={20} />}
+            searchQuery={searchQuery}
+            control={
+              <MenuSelect<PlaylistSyncMode>
+                aria-label={t("settings.spotify.playlists.title")}
+                className="w-[170px]"
+                value={settings.playlistsMode}
+                onChange={(playlistsMode) => updateSettings({ playlistsMode })}
+                options={[
+                  {
+                    value: "none",
+                    label: t("settings.spotify.playlists.none"),
+                  },
+                  {
+                    value: "selected",
+                    label: t("settings.spotify.playlists.selected"),
+                  },
+                  { value: "all", label: t("settings.spotify.playlists.all") },
+                ]}
+              />
+            }
+          />
         </SettingSection>
       )}
+
+      {account.connected &&
+        settings.playlistsMode === "selected" &&
+        !searching && (
+          <SettingSection
+            label={t("settings.spotify.section_playlists")}
+            action={
+              account.connected ? (
+                <button
+                  type="button"
+                  onClick={reload}
+                  aria-label={t("settings.spotify.reload_playlists")}
+                  className="flex cursor-pointer items-center border-0 bg-transparent p-0 text-text-tertiary hover:text-text-primary"
+                >
+                  <Refresh2Fill size={16} />
+                </button>
+              ) : undefined
+            }
+          >
+            <div className="flex max-h-[320px] flex-col overflow-y-auto px-[8px] py-[4px]">
+              {disabled ? (
+                <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
+                  {t("settings.spotify.playlists_sign_in_first")}
+                </p>
+              ) : failure ? (
+                <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
+                  {t("settings.spotify.playlists_failed")}{" "}
+                  {errorText(failure.code)}
+                  {failure.detail ? ` (${failure.detail})` : ""}
+                </p>
+              ) : !playlists ? (
+                <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
+                  {t("common.loading") || "…"}
+                </p>
+              ) : playlists.length === 0 ? (
+                <p className="m-0 px-[8px] py-[10px] text-caption text-text-tertiary">
+                  {t("settings.spotify.playlists_empty")}
+                </p>
+              ) : (
+                playlists.map((playlist) => {
+                  const readable =
+                    !account.profile ||
+                    isReadablePlaylist(playlist, account.profile.id);
+                  const total = playlist.items?.total ?? playlist.tracks?.total;
+                  return (
+                    <label
+                      key={playlist.id}
+                      title={
+                        readable
+                          ? undefined
+                          : t("settings.spotify.playlist_not_readable")
+                      }
+                      className={cn(
+                        "flex items-center gap-[10px] rounded-control px-[8px] py-[6px]",
+                        readable
+                          ? "cursor-pointer hover:bg-fill"
+                          : "cursor-not-allowed opacity-50",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!readable}
+                        className="size-[15px] cursor-pointer accent-[var(--color-text-primary)] disabled:cursor-not-allowed"
+                        checked={readable && selected.has(playlist.id)}
+                        onChange={(event) =>
+                          togglePlaylist(playlist.id, event.target.checked)
+                        }
+                      />
+                      <span className="relative size-[32px] shrink-0 overflow-hidden rounded-[6px] bg-fill">
+                        {playlist.images?.[0]?.url ? (
+                          <AppImage src={playlist.images[0].url} alt="" fill />
+                        ) : null}
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-label text-text-primary">
+                          {playlist.name}
+                        </span>
+                        <span className="truncate text-caption text-text-tertiary">
+                          {[
+                            playlist.owner?.display_name,
+                            readable
+                              ? typeof total === "number"
+                                ? t("settings.spotify.track_count", {
+                                    count: total,
+                                  })
+                                : null
+                              : t("settings.spotify.playlist_not_readable"),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </SettingSection>
+        )}
+
+      {account.connected && !searching && <SpotifyLinksSection />}
 
       <SettingSection label={t("settings.spotify.section_auto")}>
         <SettingRow
@@ -422,7 +505,7 @@ export function SpotifyTab({ searchQuery }: { searchQuery?: string }) {
           control={
             <button
               type="button"
-              disabled={disabled || running}
+              disabled={!canSync || running}
               onClick={() => void syncSpotifyNow({ force: true })}
               className={cn(
                 accountCardActionClassName,

@@ -2,6 +2,14 @@ import type { Track } from "@/shared/contracts";
 
 export type PlaylistSyncMode = "none" | "all" | "selected";
 
+/** a public spotify playlist or album followed by link, without signing in */
+export interface LinkedSource {
+  kind: "playlist" | "album";
+  id: string;
+  url: string;
+  title: string;
+}
+
 export interface SpotifySyncSettings {
   /** the client id of the user's own spotify developer app */
   clientId: string;
@@ -13,6 +21,7 @@ export interface SpotifySyncSettings {
   playlistsMode: PlaylistSyncMode;
   selectedPlaylists: string[];
   intervalMinutes: number;
+  linkedSources: LinkedSource[];
 }
 
 export interface CollectionSnapshot {
@@ -47,6 +56,8 @@ export interface SyncLedger {
   liked: Record<string, SyncedEntry>;
   albums: Record<string, SyncedEntry>;
   artists: Record<string, SyncedEntry>;
+  /** albums saved because of an album link */
+  linkAlbums: Record<string, SyncedEntry>;
   fingerprints: Partial<Record<"liked" | "albums" | "artists", string>>;
   trackMatches: Record<string, CachedMatch<Track>>;
   albumMatches: Record<string, CachedMatch<CollectionSnapshot>>;
@@ -60,7 +71,11 @@ export interface SyncResult {
   unmatched: number;
   playlists: number;
   skipped: boolean;
+  /** selected playlists spotify does not share the songs of (followed, not own) */
+  skippedPlaylists?: number;
   error?: string;
+  /** spotify's own explanation, when it gave one */
+  errorDetail?: string;
 }
 
 export const emptyLedger = (owner: string | null = null): SyncLedger => ({
@@ -69,6 +84,7 @@ export const emptyLedger = (owner: string | null = null): SyncLedger => ({
   liked: {},
   albums: {},
   artists: {},
+  linkAlbums: {},
   fingerprints: {},
   trackMatches: {},
   albumMatches: {},

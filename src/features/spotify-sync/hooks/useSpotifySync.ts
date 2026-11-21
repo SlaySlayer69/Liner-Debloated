@@ -21,6 +21,9 @@ export function useSpotifySync() {
     connectedSnapshot,
   );
   const autoSync = useSpotifySyncStore((s) => s.settings.autoSync);
+  const hasLinks = useSpotifySyncStore(
+    (s) => s.settings.linkedSources.length > 0,
+  );
   const intervalMinutes = useSpotifySyncStore(
     (s) => s.settings.intervalMinutes,
   );
@@ -30,7 +33,7 @@ export function useSpotifySync() {
   }, []);
 
   useEffect(() => {
-    if (!owner || !connected || !autoSync) return;
+    if (!owner || (!connected && !hasLinks) || !autoSync) return;
     const tick = () => {
       if (typeof navigator !== "undefined" && !navigator.onLine) return;
       void syncSpotifyNow();
@@ -46,5 +49,5 @@ export function useSpotifySync() {
       window.clearInterval(every);
       window.removeEventListener("online", tick);
     };
-  }, [owner, connected, autoSync, intervalMinutes]);
+  }, [owner, connected, hasLinks, autoSync, intervalMinutes]);
 }

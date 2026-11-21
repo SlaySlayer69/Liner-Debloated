@@ -68,7 +68,7 @@ export function useSpotifyAccount() {
   const disconnect = useCallback(async () => {
     await window.linerElectron?.spotifyDisconnect?.();
     // what was synced belongs to that spotify account
-    useSpotifySyncStore.getState().resetLedger();
+    useSpotifySyncStore.getState().forgetAccountSync();
     await refreshSpotifyAccount();
   }, []);
 

@@ -40,7 +40,7 @@ async function matchTrack(track: SpotifyTrack): Promise<Track | null> {
     title: track.name,
     artists: track.artists.map((artist) => artist.name).filter(Boolean),
     ...(track.album?.name ? { album: track.album.name } : {}),
-    durationMs: track.duration_ms,
+    ...(track.duration_ms ? { durationMs: track.duration_ms } : {}),
     ...(largestImage(track.album?.images)
       ? { coverUrl: largestImage(track.album?.images) }
       : {}),

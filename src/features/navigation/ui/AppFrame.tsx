@@ -34,6 +34,7 @@ import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
 import { useDisableButtonFocus } from "../hooks/useDisableButtonFocus";
 import { useWindowPresence } from "../hooks/useWindowPresence";
 import { useWindowState } from "../hooks/useWindowState";
+import { useIsClassicLayout } from "../store/layoutStyleStore";
 import {
   useSearchTracks,
   useSearchAll,
@@ -81,6 +82,7 @@ interface AppFrameProps {
 
 const RIGHT_DRAWER_WIDTH = 440;
 const SIDEBAR_WIDTH = 52;
+const CLASSIC_SIDEBAR_WIDTH = 58;
 const SHELL_EDGE_GAP = 6;
 const SEARCH_QUERY_CACHE_TTL_MS = 60_000;
 const LEGACY_LAYOUT_STORAGE_KEYS = [
@@ -119,6 +121,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { isEdgeToEdge } = useWindowState();
+  const classicLayout = useIsClassicLayout();
 
   const searchOpen = useModalStore((state) => state.searchOpen);
   const openSearch = useModalStore((state) => state.openSearch);
@@ -751,11 +754,15 @@ export default function AppFrame({ children }: AppFrameProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className="absolute left-[64px] right-1.5 top-1.5 z-[45]"
+            className={cn(
+              "absolute right-1.5 top-1.5 z-[45]",
+              classicLayout ? "left-1.5" : "left-[64px]",
+            )}
           >
             <Header
               searchOpen={searchOpen}
               onSearchToggle={handleSearchToggle}
+              classic={classicLayout}
             />
           </motion.div>
         )}
@@ -769,11 +776,15 @@ export default function AppFrame({ children }: AppFrameProps) {
       >
         <aside
           ref={sidebarRef}
-          className="w-[52px] shrink-0 z-[45] relative flex flex-col"
+          className={cn(
+            "shrink-0 z-[45] relative flex flex-col",
+            classicLayout ? "w-[58px] mt-[56px]" : "w-[52px]",
+          )}
         >
           <Sidebar
             searchOpen={searchOpen}
             onSearchToggle={handleSearchToggle}
+            classic={classicLayout}
           />
         </aside>
 
@@ -782,7 +793,11 @@ export default function AppFrame({ children }: AppFrameProps) {
             className={cn(
               // the header only sits on the right now, so pages start at the top:
               // with their own 8px the hero lines up with the sidebar logo (16px)
-              "flex-1 min-w-0 flex flex-col relative h-full overflow-hidden [--page-inset-top:8px]",
+              "flex-1 min-w-0 flex flex-col relative h-full overflow-hidden",
+              // the classic shell keeps the full-width header above the pages
+              classicLayout
+                ? "[--page-inset-top:56px] [--home-feed-top:56px] [--library-title-top:36px]"
+                : "[--page-inset-top:8px] [--home-feed-top:10px] [--library-title-top:11px]",
               "rounded-item",
               shouldShowMiniPlayer && hasPageBackdrop
                 ? "[--page-inset-bottom:64px] [--floating-inset-bottom:70px]"
@@ -906,7 +921,9 @@ export default function AppFrame({ children }: AppFrameProps) {
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className={`absolute right-0 z-[60] flex flex-col items-center pointer-events-none pt-[54px]`}
             style={{
-              left: SIDEBAR_WIDTH + SHELL_EDGE_GAP,
+              left:
+                (classicLayout ? CLASSIC_SIDEBAR_WIDTH : SIDEBAR_WIDTH) +
+                SHELL_EDGE_GAP,
               right: SHELL_EDGE_GAP,
               top: 6,
             }}

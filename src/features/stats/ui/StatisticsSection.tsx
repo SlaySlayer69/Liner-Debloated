@@ -17,6 +17,13 @@ import {
 import type { TopArtist } from "../lib/aggregate";
 
 const font = { fontFamily: "var(--font-inter), sans-serif" } as const;
+// same heading face as the other home sections (SectionHeading)
+const headingFont = {
+  fontFamily: "var(--font-roboto-flex), sans-serif",
+  fontWeight: 564,
+  fontVariationSettings:
+    "'wght' 564, 'GRAD' 105, 'XOPQ' 100, 'wdth' 134, 'opsz' 144",
+} as const;
 const ARTIST_IMAGE_LIMIT = 10;
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
@@ -158,7 +165,7 @@ function useArtistImages(
 function SubHeading({ children }: { children: React.ReactNode }) {
   return (
     <h3
-      className="px-8 mt-[18px] mb-0 text-[15px] font-semibold text-text-primary leading-tight tracking-tight"
+      className="px-3 mt-[18px] mb-0 text-[15px] font-semibold text-text-primary leading-tight tracking-tight"
       style={font}
     >
       {children}
@@ -243,22 +250,22 @@ function StatisticsSection({
   return (
     <section className="flex flex-col" aria-label={t("home.stats.title")}>
       <div
-        className={`${headingMarginTop} px-8 flex flex-wrap items-center justify-between gap-3`}
+        className={`${headingMarginTop} px-3 flex flex-wrap items-center justify-between gap-3`}
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center shrink-0">
-            <ChartBarFill className="w-5 h-5 text-violet-400" />
+          <div className="flex items-center justify-center shrink-0 w-5 h-5 text-text-tertiary [&>svg]:w-5 [&>svg]:h-5">
+            <ChartBarFill />
           </div>
           <h2
-            className="text-text-primary text-[21px] font-semibold m-0 leading-tight tracking-tight"
-            style={font}
+            className="font-roboto-flex-heading text-text-primary text-[24px] m-0 leading-none tracking-tight"
+            style={headingFont}
           >
             {t("home.stats.title")}
           </h2>
         </div>
 
         <div
-          className="inline-flex items-center gap-[2px] rounded-xl p-[3px] bg-bg-elevated select-none"
+          className="inline-flex h-[32px] w-fit shrink-0 items-center rounded-item bg-fill p-[3px] select-none"
           role="tablist"
           aria-label={t("home.stats.title")}
         >
@@ -274,7 +281,7 @@ function StatisticsSection({
                   setPeriod(value);
                   setOffset(0);
                 }}
-                className={`relative rounded-lg px-[12px] py-[6px] text-[12.5px] leading-none border-0 bg-transparent cursor-pointer transition-colors duration-150 active:scale-[0.97] ${
+                className={`relative inline-flex h-full items-center whitespace-nowrap rounded-control px-[12px] text-body leading-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ${
                   active
                     ? "text-text-primary"
                     : "text-text-secondary hover:text-text-primary"
@@ -284,7 +291,7 @@ function StatisticsSection({
                 {active && (
                   <motion.div
                     layoutId="statsPeriodTab"
-                    className="absolute inset-0 rounded-lg bg-bg-primary shadow-sm"
+                    className="absolute inset-0 rounded-control bg-fill-hover"
                     transition={{
                       type: "spring",
                       stiffness: 500,
@@ -302,14 +309,14 @@ function StatisticsSection({
         </div>
       </div>
 
-      <div className="px-8 mt-[10px] flex items-center gap-1 select-none">
+      <div className="px-3 mt-[10px] flex items-center gap-1 select-none">
         {period !== "all" && (
           <button
             type="button"
             onClick={() => setOffset((o) => o + 1)}
             disabled={!hasOlder}
             aria-label={t("home.stats.previous")}
-            className="h-[26px] w-[26px] rounded-md flex items-center justify-center border-0 bg-transparent text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+            className="h-[26px] w-[26px] rounded-control flex items-center justify-center border-0 bg-transparent text-text-secondary hover:bg-fill hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
           >
             <LeftLine size={16} />
           </button>
@@ -326,14 +333,14 @@ function StatisticsSection({
             onClick={() => setOffset((o) => Math.max(0, o - 1))}
             disabled={offset === 0}
             aria-label={t("home.stats.next")}
-            className="h-[26px] w-[26px] rounded-md flex items-center justify-center border-0 bg-transparent text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+            className="h-[26px] w-[26px] rounded-control flex items-center justify-center border-0 bg-transparent text-text-secondary hover:bg-fill hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
           >
             <RightLine size={16} />
           </button>
         )}
       </div>
 
-      <div className="px-8 mt-[10px] grid grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="px-3 mt-[10px] grid grid-cols-2 lg:grid-cols-4 gap-2">
         {tiles.map((tile) => (
           <div key={tile.id} className="py-1 flex flex-col gap-1 min-w-0">
             <span
@@ -356,7 +363,7 @@ function StatisticsSection({
 
       {!isLoading && !hasData ? (
         <p
-          className="px-8 mt-[14px] mb-0 text-[13px] text-text-tertiary"
+          className="px-3 mt-[14px] mb-0 text-[13px] text-text-tertiary"
           style={font}
         >
           {t("home.stats.empty")}
@@ -455,7 +462,7 @@ function StatisticsSection({
           )}
 
           <SubHeading>{t("home.stats.top_genres")}</SubHeading>
-          <div className="px-8 mt-[10px]">
+          <div className="px-3 mt-[10px]">
             {genres.length === 0 ? (
               <p className="m-0 text-[13px] text-text-tertiary" style={font}>
                 {t("home.stats.genres_empty")}

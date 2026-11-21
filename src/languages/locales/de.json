@@ -805,12 +805,12 @@
     },
     "spotify": {
       "description": "Melde dich mit Spotify an und halte Lieblingssongs, Alben, Künstler und Playlists mit Liner synchron.",
-      "section_app": "Spotify-App",
+      "section_app": "Mit Spotify anmelden (braucht eine Entwickler-App mit Premium)",
       "section_what": "Was synchronisiert wird",
       "section_playlists": "Zu synchronisierende Playlists",
       "section_auto": "Synchronisierung",
       "signed_out_title": "Nicht verbunden",
-      "signed_out_description": "Trage unten deine Client-ID ein und melde dich an",
+      "signed_out_description": "Synchronisiere unten öffentliche Links oder melde dich für die ganze Bibliothek an",
       "signed_in_subtitle": "Mit Spotify verbunden",
       "waiting_for_browser": "Schließe die Anmeldung im Browser ab…",
       "sign_in": "Anmelden",
@@ -830,7 +830,7 @@
       },
       "setup_step_1": "Erstelle eine App auf",
       "setup_step_2": "Trage diese Redirect-URI in der App ein:",
-      "setup_step_3": "Füge unter „User Management“ die E-Mail deines Spotify-Kontos hinzu.",
+      "setup_step_3": "Füge unter „User Management“ Namen und E-Mail deines Spotify-Kontos hinzu. Der Besitzer der App braucht Spotify Premium.",
       "setup_step_4": "Kopiere die Client-ID der App in das Feld oben und melde dich an.",
       "liked": {
         "title": "Lieblingssongs",
@@ -866,7 +866,36 @@
       "every_minutes": "Alle {count} Min.",
       "sync_now": "Jetzt synchronisieren",
       "sync_now_button": "Synchronisieren",
-      "syncing": "Synchronisiere…"
+      "syncing": "Synchronisiere…",
+      "error_forbidden": "Spotify verweigert den Zugriff (403)",
+      "error_rate_limited": "Spotify bremst gerade, neuer Versuch später",
+      "result_skipped_playlists_one": "{count} gefolgte Playlist übersprungen",
+      "result_skipped_playlists": "{count} gefolgte Playlists übersprungen",
+      "playlist_not_readable": "Spotify gibt nur die Songs eigener und gemeinsamer Playlists frei",
+      "forbidden_title": "Spotify verweigert den Zugriff",
+      "forbidden_intro": "Spotify antwortet mit 403, wenn deine App dieses Konto nicht lesen darf. Prüfe im Spotify-Entwickler-Dashboard:",
+      "forbidden_step_users": "Unter „User Management“ ist die E-Mail-Adresse des Spotify-Kontos eingetragen, mit dem du dich angemeldet hast.",
+      "forbidden_step_premium": "Das Konto, dem die App gehört, hat Spotify Premium (seit Februar 2026 Pflicht für Entwickler-Apps).",
+      "forbidden_step_reconnect": "Danach hier trennen, neu anmelden und auf „Synchronisieren“ drücken.",
+      "links": {
+        "title": "Öffentliche Links (ohne Anmeldung)",
+        "description": "Füge Links zu öffentlichen Spotify-Playlists oder -Alben ein. Liner kopiert Playlists und hält sie aktuell, Alben landen in deiner Bibliothek. Klappt ohne Spotify-Konto; Lieblingssongs und private Playlists brauchen eine Anmeldung.",
+        "add": "Hinzufügen",
+        "checking": "Prüfe…",
+        "remove": "Nicht mehr synchronisieren",
+        "duplicate": "Dieser Link ist schon in der Liste.",
+        "unsupported": "Hier funktionieren nur Links zu Spotify-Playlists und -Alben.",
+        "unreadable": "Spotify gibt diesen Link nicht frei. Ist die Playlist öffentlich?",
+        "untitled": "Spotify-Playlist",
+        "kind_playlist": "Playlist, wird aktuell gehalten",
+        "kind_album": "Album in deiner Bibliothek"
+      }
+    },
+    "layout_style": {
+      "title": "Layout",
+      "description": "Modern zeigt Logo und Bibliothek in der Seitenleiste. Klassisch holt das frühere Layout mit dem Logo in der oberen Leiste zurück.",
+      "modern": "Modern",
+      "classic": "Klassisch"
     }
   },
   "toast": {

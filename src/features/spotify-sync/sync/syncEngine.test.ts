@@ -1,17 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Track } from "@/shared/contracts";
-import type {
-  SpotifyAlbum,
-  SpotifyClient,
-  SpotifyPlaylist,
-  SpotifyTrack,
+import {
+  SpotifyApiError,
+  type SpotifyAlbum,
+  type SpotifyClient,
+  type SpotifyPlaylist,
+  type SpotifyTrack,
 } from "../api/spotifyClient";
 import {
   LinerPlaylistMissingError,
   runSpotifySync,
   type LinerTarget,
 } from "./syncEngine";
-import { emptyLedger, type SpotifySyncSettings } from "./types";
+import {
+  emptyLedger,
+  type SpotifySyncSettings,
+  type SyncLedger,
+} from "./types";
+import type { PublicSpotifySource } from "../links/publicSource";
 
 const settings = (
   over: Partial<SpotifySyncSettings> = {},
@@ -24,6 +30,7 @@ const settings = (
   playlistsMode: "none",
   selectedPlaylists: [],
   intervalMinutes: 5,
+  linkedSources: [],
   ...over,
 });
 
@@ -54,11 +61,12 @@ function fakeSpotify(state: {
     savedTracks: async () => state.liked ?? [],
     savedAlbums: async () => state.albums ?? [],
     followedArtists: async () => [],
-    libraryFingerprints: async () => ({
-      liked: (state.liked ?? []).map((t) => t.id).join(","),
-      albums: (state.albums ?? []).map((a) => a.id).join(","),
-      artists: "",
-    }),
+    libraryFingerprint: async (section) =>
+      section === "liked"
+        ? (state.liked ?? []).map((t) => t.id).join(",")
+        : section === "albums"
+          ? (state.albums ?? []).map((a) => a.id).join(",")
+          : "",
   };
 }
 
@@ -186,8 +194,8 @@ describe("runSpotifySync", () => {
     const liner = fakeLiner();
     const state = {
       playlists: [
-        { id: "p1", name: "Mix", snapshot_id: "s1" },
-        { id: "p2", name: "Other", snapshot_id: "s1" },
+        { id: "p1", name: "Mix", snapshot_id: "s1", owner: { id: "me" } },
+        { id: "p2", name: "Other", snapshot_id: "s1", owner: { id: "me" } },
       ] as SpotifyPlaylist[],
       playlistTracks: { p1: [sTrack("1"), sTrack("2"), sTrack("1")] } as Record<
         string,
@@ -233,5 +241,178 @@ describe("runSpotifySync", () => {
     expect(liner.playlists.get(third.ledger.playlists.p1.linerId)!.size).toBe(
       2,
     );
+  });
+
+  it("skips playlists spotify does not share the songs of", async () => {
+    const liner = fakeLiner();
+    const state = {
+      playlists: [
+        { id: "mine", name: "Mine", snapshot_id: "s", owner: { id: "me" } },
+        {
+          id: "shared",
+          name: "Team",
+          snapshot_id: "s",
+          owner: { id: "x" },
+          collaborative: true,
+        },
+        {
+          id: "followed",
+          name: "Top 50",
+          snapshot_id: "s",
+          owner: { id: "spotify" },
+        },
+      ] as SpotifyPlaylist[],
+      playlistTracks: { mine: [sTrack("1")], shared: [sTrack("2")] } as Record<
+        string,
+        SpotifyTrack[]
+      >,
+    };
+    const cfg = settings({ liked: false, playlistsMode: "all" });
+    const { ledger, result } = await runSpotifySync(
+      fakeSpotify(state),
+      liner.target,
+      cfg,
+      emptyLedger(),
+    );
+    expect(Object.keys(ledger.playlists).sort()).toEqual(["mine", "shared"]);
+    expect(result).toMatchObject({ playlists: 2, skippedPlaylists: 1 });
+    expect(result.error).toBeUndefined();
+  });
+
+  it("keeps syncing the other parts when one is forbidden", async () => {
+    const liner = fakeLiner();
+    const spotify = fakeSpotify({
+      albums: [{ id: "A", name: "album", artists: [] }] as SpotifyAlbum[],
+    });
+    spotify.libraryFingerprint = async (section) => {
+      if (section === "liked")
+        throw new SpotifyApiError(
+          403,
+          "spotify_403",
+          "user may not be registered",
+        );
+      return "fp";
+    };
+    const cfg = settings({ albums: true });
+    const { result } = await runSpotifySync(
+      spotify,
+      liner.target,
+      cfg,
+      emptyLedger(),
+    );
+    expect([...liner.albums]).toEqual(["al-A"]);
+    expect(result).toMatchObject({
+      error: "spotify_403",
+      errorDetail: "user may not be registered",
+      skipped: false,
+    });
+  });
+
+  describe("public links without a spotify sign-in", () => {
+    const imported = (id: string) => ({
+      sourceId: id,
+      title: `song ${id}`,
+      artists: ["artist"],
+      durationMs: 1000,
+    });
+
+    function fakePublic(state: {
+      playlist: { ids: string[]; complete: boolean };
+    }): PublicSpotifySource {
+      return {
+        read: async (kind, id) => ({
+          kind,
+          id,
+          title: kind === "album" ? "Album" : "Public mix",
+          tracks:
+            kind === "album"
+              ? [imported("a1")]
+              : state.playlist.ids.map(imported),
+          complete: kind === "album" || state.playlist.complete,
+        }),
+      };
+    }
+
+    const notSignedIn: SpotifyClient = {
+      ...fakeSpotify({}),
+      libraryFingerprint: async () => {
+        throw new SpotifyApiError(401, "not_connected");
+      },
+    };
+
+    it("mirrors a linked playlist and only removes after a complete read", async () => {
+      const liner = fakeLiner();
+      const state = { playlist: { ids: ["1", "2"], complete: true } };
+      const cfg = settings({
+        linkedSources: [
+          {
+            kind: "playlist",
+            id: "PL",
+            url: "https://open.spotify.com/playlist/PL",
+            title: "Public mix",
+          },
+        ],
+      });
+      const run = (ledger: SyncLedger, force = false) =>
+        runSpotifySync(notSignedIn, liner.target, cfg, ledger, {
+          account: false,
+          publicSource: fakePublic(state),
+          force,
+        });
+
+      const first = await run(emptyLedger());
+      expect(first.result.error).toBeUndefined();
+      const linerId = first.ledger.playlists["link:PL"].linerId;
+      expect([...liner.playlists.get(linerId)!.keys()]).toEqual([
+        "yt-1",
+        "yt-2",
+      ]);
+
+      // unchanged list: nothing to do
+      expect((await run(first.ledger)).result.skipped).toBe(true);
+
+      // a partial read adds but never removes
+      state.playlist = { ids: ["3"], complete: false };
+      const partial = await run(first.ledger);
+      expect([...liner.playlists.get(linerId)!.keys()]).toEqual([
+        "yt-1",
+        "yt-2",
+        "yt-3",
+      ]);
+
+      state.playlist = { ids: ["3"], complete: true };
+      await run(partial.ledger);
+      expect([...liner.playlists.get(linerId)!.keys()]).toEqual(["yt-3"]);
+    });
+
+    it("saves a linked album and removes it again with the link", async () => {
+      const liner = fakeLiner();
+      const link = {
+        kind: "album" as const,
+        id: "AL",
+        url: "u",
+        title: "Album",
+      };
+      const options = {
+        account: false,
+        publicSource: fakePublic({ playlist: { ids: [], complete: true } }),
+      };
+      const first = await runSpotifySync(
+        notSignedIn,
+        liner.target,
+        settings({ linkedSources: [link] }),
+        emptyLedger(),
+        options,
+      );
+      expect([...liner.albums]).toEqual(["al-AL"]);
+      await runSpotifySync(
+        notSignedIn,
+        liner.target,
+        settings(),
+        first.ledger,
+        options,
+      );
+      expect(liner.albums.size).toBe(0);
+    });
   });
 });

@@ -27,6 +27,8 @@ const PAGE_ATTEMPTS = 3;
 export interface PathfinderResult {
   tracks: ClientImportedTrack[];
   total: number | undefined;
+  /** every page up to the reported total was read */
+  complete?: boolean;
 }
 
 function pathfinderUrl(playlistId: string, offset: number): string {
@@ -147,6 +149,7 @@ export async function fetchSpotifyPlaylistTracks(
   const tracks: ClientImportedTrack[] = [];
   let total: number | undefined;
   let offset = 0;
+  let stoppedEarly = false;
 
   for (
     let page = 0;
@@ -156,6 +159,7 @@ export async function fetchSpotifyPlaylistTracks(
     const content = await fetchPage(playlistId, offset, signal);
     if (!content) {
       if (page === 0) throw new Error("spotify pathfinder returned nothing");
+      stoppedEarly = true;
       break;
     }
     const count = numberValue(content.totalCount);
@@ -169,5 +173,9 @@ export async function fetchSpotifyPlaylistTracks(
     offset += PAGE_LIMIT;
     await delay(50, signal);
   }
-  return { tracks, total };
+  return {
+    tracks,
+    total,
+    complete: !stoppedEarly && total !== undefined && offset >= total,
+  };
 }
