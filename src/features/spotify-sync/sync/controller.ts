@@ -4,6 +4,7 @@ import { createSpotifyClient, SpotifyApiError } from "../api/spotifyClient";
 import { useSpotifySyncStore } from "../store/spotifySyncStore";
 import { linerTarget } from "./linerTarget";
 import { runSpotifySync, syncErrorCode } from "./syncEngine";
+import { publicSpotifySource } from "../links/publicSource";
 import type { SyncResult } from "./types";
 
 let running: Promise<SyncResult | null> | null = null;
@@ -28,20 +29,31 @@ export function syncSpotifyNow(
   if (store.ledger.owner !== owner) store.resetLedger(owner);
   store.setRunning(true);
 
-  running = runSpotifySync(
-    createSpotifyClient(),
-    linerTarget,
-    useSpotifySyncStore.getState().settings,
-    useSpotifySyncStore.getState().ledger,
-    {
-      force: options.force,
-      commit: (ledger) =>
-        useSpotifySyncStore.getState().setLedger(structuredClone(ledger)),
-      onProgress: (step) =>
-        useSpotifySyncStore.getState().setRunning(true, step),
-    },
-  )
-    .then(({ ledger, result }) => {
+  running = (async () => {
+    // without a sign-in the public links can still be synced
+    const status = await window.linerElectron?.spotifyStatus?.();
+    const account = Boolean(status?.connected);
+    const { settings, ledger } = useSpotifySyncStore.getState();
+    if (!account && settings.linkedSources.length === 0) return null;
+    return runSpotifySync(
+      createSpotifyClient(),
+      linerTarget,
+      settings,
+      ledger,
+      {
+        force: options.force,
+        account,
+        publicSource: publicSpotifySource,
+        commit: (next) =>
+          useSpotifySyncStore.getState().setLedger(structuredClone(next)),
+        onProgress: (step) =>
+          useSpotifySyncStore.getState().setRunning(true, step),
+      },
+    );
+  })()
+    .then((outcome) => {
+      if (!outcome) return null;
+      const { ledger, result } = outcome;
       const state = useSpotifySyncStore.getState();
       // signed out of liner meanwhile: drop the result instead of mixing accounts
       if ((getAuthSession()?.user?.id ?? null) !== owner) return null;

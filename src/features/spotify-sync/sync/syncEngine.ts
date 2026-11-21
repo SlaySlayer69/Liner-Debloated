@@ -16,10 +16,12 @@ import type {
   SyncLedger,
   SyncResult,
 } from "./types";
+import { syncLinkedSources } from "../links/linkSync";
+import type { PublicSpotifySource } from "../links/publicSource";
 
 // a failed lookup is tried again after a week: the catalog may have the song by then
 export const UNMATCHED_RETRY_MS = 7 * 24 * 60 * 60_000;
-const MATCH_CONCURRENCY = 4;
+export const MATCH_CONCURRENCY = 4;
 
 export class LinerPlaylistMissingError extends Error {
   constructor() {
@@ -61,16 +63,20 @@ export interface SyncOptions {
   /** persists the ledger after every section so an interrupted sync keeps its progress */
   commit?: (ledger: SyncLedger) => void;
   onProgress?: (step: string) => void;
+  /** false without a spotify sign-in: only the public links are synced */
+  account?: boolean;
+  /** reads the linked public playlists and albums */
+  publicSource?: PublicSpotifySource;
 }
 
-interface Counters {
+export interface Counters {
   added: number;
   removed: number;
   unmatched: number;
   playlists: number;
 }
 
-async function mapLimited<T, R>(
+export async function mapLimited<T, R>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<R>,
@@ -89,7 +95,7 @@ async function mapLimited<T, R>(
   return results;
 }
 
-function cachedLookup<S extends { id: string | null }, V>(
+export function cachedLookup<S extends { id: string | null }, V>(
   cache: Record<string, CachedMatch<V>>,
   lookup: (item: S) => Promise<V | null>,
   now: number,
@@ -114,7 +120,7 @@ function cachedLookup<S extends { id: string | null }, V>(
  * mirrors one "saved" list (liked songs, albums, artists) from spotify into liner.
  * entries the user already had are marked `own` and never removed.
  */
-async function mirrorSet<S extends { id: string | null }>(options: {
+export async function mirrorSet<S extends { id: string | null }>(options: {
   source: S[];
   entries: Record<string, SyncedEntry>;
   match: (item: S) => Promise<string | null>;
@@ -229,7 +235,9 @@ export async function runSpotifySync(
 
   const trackMatch = cachedLookup(ledger.trackMatches, liner.matchTrack, now());
 
-  if (settings.liked)
+  const account = options.account !== false;
+
+  if (account && settings.liked)
     await attempt(async () => {
       const fingerprint = await spotify.libraryFingerprint("liked");
       if (!force && ledger.fingerprints.liked === fingerprint) return;
@@ -269,7 +277,7 @@ export async function runSpotifySync(
     },
   ];
   for (const section of collections) {
-    if (!section.enabled) continue;
+    if (!account || !section.enabled) continue;
     await attempt(async () => {
       const fingerprint = await spotify.libraryFingerprint(section.key);
       if (!force && ledger.fingerprints[section.key] === fingerprint) return;
@@ -306,7 +314,7 @@ export async function runSpotifySync(
     });
   }
 
-  if (settings.playlistsMode !== "none")
+  if (account && settings.playlistsMode !== "none")
     await attempt(async () => {
       const [profile, all] = await Promise.all([
         spotify.me(),
@@ -329,6 +337,24 @@ export async function runSpotifySync(
       }
     });
 
+  if (options.publicSource)
+    if (
+      await syncLinkedSources({
+        source: options.publicSource,
+        liner,
+        ledger,
+        links: settings.linkedSources ?? [],
+        counters,
+        force,
+        now: now(),
+        trackMatch,
+        attempt,
+        onProgress: options.onProgress,
+        commit,
+      })
+    )
+      skipped = false;
+
   const result: SyncResult = {
     finishedAt: now(),
     ...counters,
@@ -349,7 +375,34 @@ async function syncPlaylist(
   counters: Counters,
 ) {
   const tracks = await spotify.playlistTracks(playlist.id);
-  const matched = await mapLimited(tracks, MATCH_CONCURRENCY, trackMatch);
+  await mirrorPlaylist(
+    liner,
+    ledger,
+    playlist.id,
+    {
+      name: playlist.name,
+      description: playlist.description,
+      snapshotId: playlist.snapshot_id,
+    },
+    await mapLimited(tracks, MATCH_CONCURRENCY, trackMatch),
+    counters,
+    true,
+  );
+}
+
+/**
+ * brings the liner copy of one playlist in line with the matched songs.
+ * without `allowRemovals` (an incomplete song list) it only adds.
+ */
+export async function mirrorPlaylist(
+  liner: LinerTarget,
+  ledger: SyncLedger,
+  key: string,
+  meta: { name: string; description?: string | null; snapshotId: string },
+  matched: (Track | null)[],
+  counters: Counters,
+  allowRemovals: boolean,
+) {
   counters.unmatched += matched.filter((track) => !track).length;
 
   const wanted = new Map<string, Track>();
@@ -357,16 +410,16 @@ async function syncPlaylist(
     if (track && !wanted.has(track.id)) wanted.set(track.id, track);
   }
 
-  let state: SyncedPlaylist | undefined = ledger.playlists[playlist.id];
-  const description = playlist.description?.replace(/<[^>]*>/g, "").trim();
+  let state: SyncedPlaylist | undefined = ledger.playlists[key];
+  const description = meta.description?.replace(/<[^>]*>/g, "").trim();
   if (state && !(await liner.hasPlaylist(state.linerId))) {
-    delete ledger.playlists[playlist.id];
+    delete ledger.playlists[key];
     state = undefined;
   }
   if (!state) {
-    const linerId = await liner.createPlaylist(playlist.name, description);
-    state = { linerId, name: playlist.name, snapshotId: "", items: {} };
-    ledger.playlists[playlist.id] = state;
+    const linerId = await liner.createPlaylist(meta.name, description);
+    state = { linerId, name: meta.name, snapshotId: "", items: {} };
+    ledger.playlists[key] = state;
   }
 
   const applyDiff = async () => {
@@ -378,6 +431,7 @@ async function syncPlaylist(
       Object.assign(state.items, added);
       counters.added += Object.keys(added).length;
     }
+    if (!allowRemovals) return;
     for (const [trackId, itemId] of Object.entries(state.items)) {
       if (wanted.has(trackId)) continue;
       await liner.removePlaylistItem(state.linerId, itemId);
@@ -391,12 +445,13 @@ async function syncPlaylist(
   } catch (error) {
     if (!(error instanceof LinerPlaylistMissingError)) throw error;
     // the user deleted the copy in liner: start a fresh one
-    state.linerId = await liner.createPlaylist(playlist.name, description);
+    state.linerId = await liner.createPlaylist(meta.name, description);
     state.items = {};
     await applyDiff();
   }
 
-  state.name = playlist.name;
-  state.snapshotId = playlist.snapshot_id;
+  state.name = meta.name;
+  // an incomplete read must be looked at again next time
+  state.snapshotId = allowRemovals ? meta.snapshotId : "";
   counters.playlists += 1;
 }

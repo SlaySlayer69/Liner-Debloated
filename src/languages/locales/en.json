@@ -1137,12 +1137,12 @@
     },
     "spotify": {
       "description": "Sign in with Spotify and keep your liked songs, albums, artists and playlists in sync with Liner.",
-      "section_app": "Spotify app",
+      "section_app": "Sign in with Spotify (needs a developer app with Premium)",
       "section_what": "What to sync",
       "section_playlists": "Playlists to sync",
       "section_auto": "Sync",
       "signed_out_title": "Not connected",
-      "signed_out_description": "Enter your client ID below, then sign in",
+      "signed_out_description": "Sync public links below, or sign in to sync your whole library",
       "signed_in_subtitle": "Connected to Spotify",
       "waiting_for_browser": "Finish signing in in your browser…",
       "sign_in": "Sign in",
@@ -1208,7 +1208,20 @@
       "forbidden_intro": "Spotify answers with 403 when your app may not read this account. Check in the Spotify developer dashboard:",
       "forbidden_step_users": "Under User Management, the email address of the Spotify account you signed in with is added.",
       "forbidden_step_premium": "The account that owns the app has Spotify Premium (required for developer apps since February 2026).",
-      "forbidden_step_reconnect": "Then disconnect here, sign in again and press Sync."
+      "forbidden_step_reconnect": "Then disconnect here, sign in again and press Sync.",
+      "links": {
+        "title": "Public links (no sign-in)",
+        "description": "Paste links to public Spotify playlists or albums. Liner copies playlists and keeps them up to date, and adds albums to your library. Works without a Spotify account; liked songs and private playlists need a sign-in.",
+        "add": "Add",
+        "checking": "Checking…",
+        "remove": "Stop syncing",
+        "duplicate": "This link is already in the list.",
+        "unsupported": "Only links to Spotify playlists and albums work here.",
+        "unreadable": "Spotify did not share this link. Is the playlist public?",
+        "untitled": "Spotify playlist",
+        "kind_playlist": "Playlist, kept up to date",
+        "kind_album": "Album in your library"
+      }
     },
     "layout_style": {
       "title": "Layout",
